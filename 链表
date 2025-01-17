@@ -1,0 +1,208 @@
+单链表的节点定义如下：
+class ListNode {
+   int val ;
+   ListNode next;
+   ListNode (int x){val = x ;}
+}
+这是一个最简单的单链表节点 
+实际上我们使用的链表节点会复杂点 
+
+class node <E>{
+  E val;
+  Node<E>next;
+  Node<E>prev;
+
+Node(Node<E>prev,E element, Node<E> next){
+    this.val = element;
+    this.next = next;
+    this.prev = prev;
+}
+}
+
+主要区别是两个
+
+编程语言标准库一般都会提供泛型 leetcode上面的单链表节点val字段只有 int类型 
+
+编程语言标准库一般都是使用的双链表 而不是单链表 
+
+有了prev前驱指针 链表支持双向遍历 但由于要多维护一个指针 增删查改会复杂一点 
+
+为什么需要链表 
+一直链表不需要一块连续的内存空间存储元素 链表的元素可以分散在内存空间里 
+
+好处是 提高内存形式利用需爱看v 
+另一个是 节点要使用的时候就能接上 不用的时候拆掉就好了 从来不需要考虑扩容和数据搬移
+
+局限是 不支持通过索引快速访问元素 链表不支持 
+
+单链表的基本操作 
+
+class ListNode{
+
+int val;
+ListNode next;
+ListNode(int x){val = x;};
+
+}
+
+ListNode createLinkedList (int arr[]){
+
+if (arr == null || arr.length == 0 ){
+return null;
+}
+ListNode head = new ListNode(arr[0]);
+listNode cur = head ;
+for (int i = 1; i < arr.length ; i++){
+cur.next = new ListNode(arr[arr[i]);
+cur = cur.next;
+}
+return head;
+查改 单链表的遍历 查找 修改 
+
+ListNode head = createLinkedList(new int[] {1,2,3,4,5});
+
+for (ListNode p =head ; p!= null;p = p.next){
+System.out.printLn(p.val);
+}
+
+在链表的头部插入新元素 简单你 ListNode newHead = new ListNode(0);
+newHead.next= head;
+head = newHead；
+
+
+在尾部插入元素 这个复杂一点 因为需要先从头遍历到链表的最后一个节点 然后才能在最后一个节点后面再插入新节点 
+
+ListNode head = createLinkedList（new in[] {1,2,3,4,5});
+
+ListNode p = head;
+while(p.next != null){
+p = p.next;
+}
+p.next = new ListNode(6);
+
+
+在单链表中间插入新元素 ··
+
+这个操作稍微有点复杂 我还是要找到插入位置的前驱节点  然后操作前驱节点把新节点插入进去 
+
+ListNode p = head;
+for(int i = 0 ,i <2 ; i++){
+p = p.next;
+
+}
+ListNode newNode  = new ListNode(66);
+newNode.next = p.next;
+p.next = newhead;
+
+下一个是在单链表中删除一个节点 
+
+首先要找到要被删除节点的前驱节点的前驱系欸但 然后把这个前驱节点的next 指针指向被删除节点的下一个节点  这样就看呀把删除节点从链表中摘除了
+
+ListNode head = createLinkedList(new int[] {1,2,3,4,5});
+
+ListNode p = head ;
+
+for (int i = 0; i < 2; i++){
+p = p.next;
+}
+p.next = p.next.mext;
+
+下一个是单链表的尾部删除元素 
+
+找到倒数第二个节点 把它的next置为空就好了
+
+
+Listnode head = createLinkedList(new int[] {1,2,3,4,5});
+ListNode p = head;
+
+while(p.next.next == !=null){
+p = p.next;
+}
+p.next = null;
+
+在单链表的头部移除元素 这个比较简单 就是把head移动到下一个节点就好了 
+
+head = head.next;
+
+双链表的基本操作 
+先写一个工具函数 
+
+用于创建一条双链表 
+
+class doublyListNode{
+int val ;
+doublyListNode next,prev;
+DoublyListNode(int x){val = x;}
+
+}
+DoublyListNode createDoublyLinkedList(int [] arr){
+
+if(arr == null || arr.length == 0 ){
+return null;
+}
+DoublyListNode head = new DoublyListNode(arr[0]);
+DoublyListNode cur = head;
+
+for (int i = 1; i< arr.length ;i++){
+DoublyListNode newNode = new DoublyListNode(arr[i]);
+cur.next = newNode；
+newNode.prev = cur;
+cur = cur.next;
+}
+return head;
+}
+
+双链表的遍历和查找和遍历和查找 可以从头节点或者
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
