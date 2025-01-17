@@ -1,0 +1,327 @@
+数组 静态数组或者动态数组 
+
+动态数组是静态数组基础上添加了些常用的api 比如push insert remove等方法 
+本章的内容就是用最原始的静态数组自己实现一个动态数组 实现增删查改的api 有了动态数组之后 后面讲到的队列 栈 哈希表等复杂的数据结构都会以来它进行实现
+
+定义一个静态数组的方法 
+int [] arr = new int[10];
+arr[0] = 1;
+arr[1] = 2;
+int a= arr[1];
+静态数组本质上就是一块连续的内存空间 数组的随机访问时间复杂度是0（1） 
+增删查改 查改简单 
+增  如果是在数组末尾增加 append这个简单 直接给索引赋值 
+在数组末尾追加元素的时间复杂度是0（1）
+数组中插入元素
+
+涉及到数据搬移
+int arr[10];
+for(int i = 0; i<4 ;i++){
+arr[i] = i;
+}
+for(int i = 4; i > 2; i--){
+arr[i] = arr[i-1];
+}
+arr[2] = 666;
+在中间插入的时间复杂度是0【n】
+
+但是还有一种情况是数组已经满了 
+因为连续内存是一次性分配的 所以必须重新申请一块更大的内存空间  把原来的数据复制过去 再插入元素 这就是数组的扩容操作
+数组扩容的时间复杂度是o【n】
+
+删
+
+首先是删除末尾元素 就是直接删除就好了 复杂度是o【1】
+
+删除中间元素 也需要数据搬移 
+把被删除元素的后面的元素都往前移动一位 
+
+
+动态数组 
+刚才讲解了静态数组的超能力和种种局限 
+现在讲解动态数组 
+动态数组底层还是静态数组知识自动帮我们进行可数组空间的扩缩容 并且把增删查改操作进行了封装 让我们在使用的时候更方便而已
+
+
+// 创建动态数组
+// 不用显式指定数组大小，它会根据实际存储的元素数量自动扩缩容
+ArrayList<Integer> arr = new ArrayList<>();
+
+for (int i = 0; i < 10; i++) {
+    // 在末尾追加元素，时间复杂度 O(1)
+    arr.add(i);
+}
+
+// 在中间插入元素，时间复杂度 O(N)
+// 在索引 2 的位置插入元素 666
+arr.add(2, 666);
+
+// 在头部插入元素，时间复杂度 O(N)
+arr.add(0, -1);
+
+// 删除末尾元素，时间复杂度 O(1)
+arr.remove(arr.size() - 1);
+
+// 删除中间元素，时间复杂度 O(N)
+// 删除索引 2 的元素
+arr.remove(2);
+
+// 根据索引查询元素，时间复杂度 O(1)
+int a = arr.get(0);
+
+// 根据索引修改元素，时间复杂度 O(1)
+arr.set(0, 100);
+
+// 根据元素值查找索引，时间复杂度 O(N)
+int index = arr.indexOf(666);
+
+动态数组的代码实现 
+
+关键点一  自动扩缩容
+在实际的使用中 缩容也是重要的优化手段  
+我们这里实现一个简单的扩缩容方法
+当数组元素个数达到底层静态数组的容量上限时候 扩容为原来的两倍 
+当数组元素个数缩减到底层静态数组的容量的0.25时候 缩容为原来的二分之一
+
+关键点二 索引越界的检查 
+
+有两种检查越界的方法  分别是checkElementIndex和checkPositionIndex 可以看到区别仅仅在于 index < size 和 index < = size
+
+为什么checkPositionIndex可以运行index == size 呢 因为这个是专门用来处理在数组中插入元素的情况 
+
+
+比方说有这样一个 nums 数组，对于每个元素来说，合法的索引一定是 index < size：
+
+
+nums = [5, 6, 7, 8]
+index   0  1  2  3
+但如果是要在数组中插入新元素，那么新元素可能的插入位置并不是元素的索引，而是索引之间的空隙：
+
+
+nums = [ | 5 | 6 | 7 | 8 | ]
+index    0   1   2   3   4
+
+关键点三 就是删除元素防止内存泄漏 
+
+单从算法来看我们不需要关心被删掉的元素如何处理 但是具体到代码实现 我们需要注意可能出现的内存泄露 
+删除元素怒的时，会把被删除的元素置为null 
+
+public E removeLast(){
+E deletedVal = data[size - 1];
+data[size - 1] == null
+size --;
+return deletedval;
+
+java的垃圾回收机制 是基于图算法的可达性分析如果一个对象再也无法被访问到 那么这个对象占用的内存才会被释放 否则 垃圾回收器会认为这个对象还在使用中 就不会释放这个对象占用的内存 
+
+如果不执行 data[size -1] = null;这行代码 那么这个音乐就会一直存在 就会造成内存泄漏 
+
+}
+
+
+
+下面的代码是具体实现 
+import java.util.Arrays;
+import java.util.Iterator;
+import java.util.NoSuchElementException;
+
+public class MyArrayList<E> {
+    // 真正存储数据的底层数组
+    private E[] data;
+    // 记录当前元素个数
+    private int size;
+    // 默认初始容量
+    private static final int INIT_CAP = 1;
+
+    public MyArrayList() {
+        this(INIT_CAP);
+    }
+
+    public MyArrayList(int initCapacity) {
+        data = (E[]) new Object[initCapacity];
+        size = 0;
+    }
+
+    // 增
+    public void addLast(E e) {
+        int cap = data.length;
+        // 看 data 数组容量够不够
+        if (size == cap) {
+            resize(2 * cap);
+        }
+        // 在尾部插入元素
+        data[size] = e;
+        size++;
+    }
+
+    public void add(int index, E e) {
+        // 检查索引越界
+        checkPositionIndex(index);
+
+        int cap = data.length;
+        // 看 data 数组容量够不够
+        if (size == cap) {
+            resize(2 * cap);
+        }
+
+        // 搬移数据 data[index..] -> data[index+1..]
+        // 给新元素腾出位置
+        for (int i = size - 1; i >= index; i--) {
+            data[i + 1] = data[i];
+        }
+
+        // 插入新元素
+        data[index] = e;
+
+        size++;
+    }
+
+    public void addFirst(E e) {
+        add(0, e);
+    }
+
+    // 删
+    public E removeLast() {
+        if (size == 0) {
+            throw new NoSuchElementException();
+        }
+        int cap = data.length;
+        // 可以缩容，节约空间
+        if (size == cap / 4) {
+            resize(cap / 2);
+        }
+
+        E deletedVal = data[size - 1];
+        // 删除最后一个元素
+        // 必须给最后一个元素置为 null，否则会内存泄漏
+        data[size - 1] = null;
+        size--;
+
+        return deletedVal;
+    }
+
+    public E remove(int index) {
+        // 检查索引越界
+        checkElementIndex(index);
+
+        int cap = data.length;
+        // 可以缩容，节约空间
+        if (size == cap / 4) {
+            resize(cap / 2);
+        }
+
+        E deletedVal = data[index];
+
+        // 搬移数据 data[index+1..] -> data[index..]
+        for (int i = index + 1; i < size; i++) {
+            data[i - 1] = data[i];
+        }
+
+        data[size - 1] = null;
+        size--;
+
+        return deletedVal;
+    }
+
+    public E removeFirst() {
+        return remove(0);
+    }
+
+    // 查
+    public E get(int index) {
+        // 检查索引越界
+        checkElementIndex(index);
+
+        return data[index];
+    }
+
+    // 改
+    public E set(int index, E element) {
+        // 检查索引越界
+        checkElementIndex(index);
+        // 修改数据
+        E oldVal = data[index];
+        data[index] = element;
+        return oldVal;
+    }
+
+    // 工具方法
+    public int size() {
+        return size;
+    }
+
+    public boolean isEmpty() {
+        return size == 0;
+    }
+
+    // 将 data 的容量改为 newCap
+    private void resize(int newCap) {
+        E[] temp = (E[]) new Object[newCap];
+
+        for (int i = 0; i < size; i++) {
+            temp[i] = data[i];
+        }
+
+        data = temp;
+    }
+
+    private boolean isElementIndex(int index) {
+        return index >= 0 && index < size;
+    }
+
+    private boolean isPositionIndex(int index) {
+        return index >= 0 && index <= size;
+    }
+
+    
+    // 检查 index 索引位置是否可以存在元素
+    private void checkElementIndex(int index) {
+        if (!isElementIndex(index))
+            throw new IndexOutOfBoundsException("Index: " + index + ", Size: " + size);
+    }
+
+    
+    // 检查 index 索引位置是否可以添加元素
+    private void checkPositionIndex(int index) {
+        if (!isPositionIndex(index))
+            throw new IndexOutOfBoundsException("Index: " + index + ", Size: " + size);
+    }
+
+    private void display() {
+        System.out.println("size = " + size + " cap = " + data.length);
+        System.out.println(Arrays.toString(data));
+    }
+
+
+    public static void main(String[] args) {
+        // 初始容量设置为 3
+        MyArrayList<Integer> arr = new MyArrayList<>(3);
+
+        // 添加 5 个元素
+        for (int i = 1; i <= 5; i++) {
+            arr.addLast(i);
+        }
+
+        arr.remove(3);
+        arr.add(1, 9);
+        arr.addFirst(100);
+        int val = arr.removeLast();
+
+        for (int i = 0; i < arr.size(); i++) {
+            System.out.println(arr.get(i));
+        }
+    }
+
+}
+
+
+
+
+
+
+
+
+
+
+
+
