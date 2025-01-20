@@ -152,7 +152,79 @@ cur = cur.next;
 return head;
 }
 
-双链表的遍历和查找和遍历和查找 可以从头节点或者
+双链表的遍历和查找和遍历和查找 可以从头节点或者尾节点开始 根据需要向前或者向后遍历 
+
+DoublyListNode head = createDoublyList(new int [] {1,2,3,4,5});
+DoublyListNode tail = null;
+
+for(DoublyListNode p = head;p!= null ;p=p.next){
+system.out.printLn(p.val);
+tail = p;
+}
+
+for(DoublyListNode p = tail ; p!= null ; p = p.prev){
+system.out.println(p.val);
+}
+
+在双链表头部插入元素 需要调节新节点和原头节点的指针 
+
+DoublyListNode head = createDoublyLinkedList（new int[] {1,2,3,4,5});
+DoublyListNode newhead = new DoublyListNode(0);
+newHead.next = head ;
+head.prev = newHead;
+head = newHead;
+
+
+在尾部插入元素
+如果我们持有尾节点的引用 这个操作很简单 
+
+DoublyListNode  head = createDoublyLinkedList(new int[] {1,2,3,4,5});
+DoublyListNode tail = head;
+while(tail.next!= null){
+tail = tali.next;
+}
+DoublyListNode newHead = new DoublyListNode(6);
+tail.next = newHead;
+newHead.prev = tail;
+tail = newHead;
+
+在双链表的指定位置插入新元素需要调整前驱节点和后继节点的指针 
+
+DoublyListNode head = createDoublyLinkedList(new int[] {1,2,3,4,5});
+
+DoublyListNode p = head;
+for(int i = 0; i< 2;i++){
+p = p.next;
+}
+DoublyListNode newHead = new DoublyListNode(66);
+newHead.next = p.next;
+newHead.prev = p;
+p.next.prev = newHead;
+p.next = newHead;
+
+
+在双链表中删除一个节点 
+需要调整前驱节点和后继节点的指针来摘除目标节点 
+
+DoublyListNode head = new createDoublyLinkedList (new int[] {1,2,3,4,5});
+
+DoublyListNode p = head;
+
+for(int i = 0; i<2 ;i++){
+p = p.next;
+}
+DoublyListNode toDelete = p.next;
+p.next = toDelete.next;
+toDelete.next.prev = p;
+
+toDelete.next = null;
+toDelete.prev = null;
+
+
+
+
+
+
 
 
 
