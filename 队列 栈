@@ -114,5 +114,648 @@ while (i < arr.length) {
   关键在于求模运算 求余数 
 
     关键点 注意开闭区间 
+    在我的代码中 环形数组的区间被定义为左闭右开 区间包含数组元素 
+理论上 你可以随意设计区间的开或者闭 但是一般 设计为左闭右开是最方便处理的 
+
+因为这样初始化 start = end = 0 时候 区间 里面没有元素 但是只要让end向右移动一位 区间【0，1）就包含一个元素了 
+
+public class CycleArray<T> {
+    private T[] arr;
+    private int start;
+    private int end;
+    private int count;
+    private int size;
+
+    public CycleArray() {
+        this(1);
+    }
+
+    @SuppressWarnings("unchecked")
+    public CycleArray(int size) {
+        this.size = size;
+        // 因为 Java 不支持直接创建泛型数组，所以这里使用了类型转换
+        this.arr = (T[]) new Object[size];
+        // start 指向第一个有效元素的索引，闭区间
+        this.start = 0;
+        // 切记 end 是一个开区间，
+        // 即 end 指向最后一个有效元素的下一个位置索引
+        this.end = 0;
+        this.count = 0;
+    }
+
+    // 自动扩缩容辅助函数
+    @SuppressWarnings("unchecked")
+    private void resize(int newSize) {
+        // 创建新的数组
+        T[] newArr = (T[]) new Object[newSize];
+        // 将旧数组的元素复制到新数组中
+        for (int i = 0; i < count; i++) {
+            newArr[i] = arr[(start + i) % size];
+        }
+        arr = newArr;
+        // 重置 start 和 end 指针
+        start = 0;
+        end = count;
+        size = newSize;
+    }
+
+    // 在数组头部添加元素，时间复杂度 O(1)
+    public void addFirst(T val) {
+        // 当数组满时，扩容为原来的两倍
+        if (isFull()) {
+            resize(size * 2);
+        }
+        // 因为 start 是闭区间，所以先左移，再赋值
+        start = (start - 1 + size) % size;
+        arr[start] = val;
+        count++;
+    }
+
+    // 删除数组头部元素，时间复杂度 O(1)
+    public void removeFirst() {
+        if (isEmpty()) {
+            throw new IllegalStateException("Array is empty");
+        }
+        // 因为 start 是闭区间，所以先赋值，再右移
+        arr[start] = null;
+        start = (start + 1) % size;
+        count--;
+        // 如果数组元素数量减少到原大小的四分之一，则减小数组大小为一半
+        if (count > 0 && count == size / 4) {
+            resize(size / 2);
+        }
+    }
+
+    // 在数组尾部添加元素，时间复杂度 O(1)
+    public void addLast(T val) {
+        if (isFull()) {
+            resize(size * 2);
+        }
+        // 因为 end 是开区间，所以是先赋值，再右移
+        arr[end] = val;
+        end = (end + 1) % size;
+        count++;
+    }
+
+    // 删除数组尾部元素，时间复杂度 O(1)
+    public void removeLast() {
+        if (isEmpty()) {
+            throw new IllegalStateException("Array is empty");
+        }
+        // 因为 end 是开区间，所以先左移，再赋值
+        end = (end - 1 + size) % size;
+        arr[end] = null;
+        count--;
+        // 缩容
+        if (count > 0 && count == size / 4) {
+            resize(size / 2);
+        }
+    }
+
+    // 获取数组头部元素，时间复杂度 O(1)
+    public T getFirst() {
+        if (isEmpty()) {
+            throw new IllegalStateException("Array is empty");
+        }
+        return arr[start];
+    }
+
+    // 获取数组尾部元素，时间复杂度 O(1)
+    public T getLast() {
+        if (isEmpty()) {
+            throw new IllegalStateException("Array is empty");
+        }
+        // end 是开区间，指向的是下一个元素的位置，所以要减 1
+        return arr[(end - 1 + size) % size];
+    }
+
+    public boolean isFull() {
+        return count == size;
+    }
     
+    public int size() {
+        return count;
+    }
+
+    public boolean isEmpty() {
+        return count == 0;
+    }
+}
+
+这段代码实现了一个**循环数组**（Circular Array），它是一种固定容量的数组结构，支持动态扩缩容，同时高效地实现了在头部和尾部的插入和删除操作。下面逐步讲解其实现和各部分的关键点。
+
+---
+
+### **核心数据结构和属性**
+
+```java
+private T[] arr;
+private int start;
+private int end;
+private int count;
+private int size;
+```
+
+- **`arr`**：存储元素的数组。
+- **`start`**：指向当前第一个有效元素的位置，**闭区间**。
+- **`end`**：指向下一个插入位置，**开区间**。
+- **`count`**：当前数组中的元素个数。
+- **`size`**：数组的容量（`arr` 的长度）。
+
+#### **循环数组特性**
+通过将 `start` 和 `end` 使用取模运算 `(index % size)` 循环访问数组的起点和终点，从而实现循环结构：
+- 如果插入元素时 `end` 超出数组长度，重新从头开始。
+- 如果删除元素时 `start` 超出数组长度，同样重新从头开始。
+
+---
+
+### **构造函数**
+
+#### **无参构造函数**
+
+```java
+public CycleArray() {
+    this(1);
+}
+```
+
+初始化默认容量为 `1` 的数组。
+
+#### **有参构造函数**
+
+```java
+@SuppressWarnings("unchecked")
+public CycleArray(int size) {
+    this.size = size;
+    this.arr = (T[]) new Object[size];
+    this.start = 0;
+    this.end = 0;
+    this.count = 0;
+}
+```
+
+- 创建指定容量的数组。
+- 将 `start` 和 `end` 指针初始化为 0。
+- 元素数量 `count` 初始化为 0。
+
+---
+
+### **辅助方法**
+
+#### **1. 自动扩缩容：`resize(int newSize)`**
+
+```java
+@SuppressWarnings("unchecked")
+private void resize(int newSize) {
+    T[] newArr = (T[]) new Object[newSize];
+    for (int i = 0; i < count; i++) {
+        newArr[i] = arr[(start + i) % size];
+    }
+    arr = newArr;
+    start = 0;
+    end = count;
+    size = newSize;
+}
+```
+
+**核心逻辑**：
+1. 创建一个新的数组 `newArr`。
+2. 将旧数组中从 `start` 开始的 `count` 个元素依次复制到新数组。
+3. 重置 `start` 为 0，`end` 为 `count`，并更新数组容量 `size`。
+
+#### **2. 判断数组是否已满：`isFull()`**
+
+```java
+public boolean isFull() {
+    return count == size;
+}
+```
+
+返回 `true` 表示数组当前已满。
+
+#### **3. 判断数组是否为空：`isEmpty()`**
+
+```java
+public boolean isEmpty() {
+    return count == 0;
+}
+```
+
+返回 `true` 表示数组为空。
+
+---
+
+### **核心操作**
+
+#### **1. 头部插入：`addFirst(T val)`**
+
+```java
+public void addFirst(T val) {
+    if (isFull()) {
+        resize(size * 2);
+    }
+    start = (start - 1 + size) % size; // 循环左移
+    arr[start] = val;
+    count++;
+}
+```
+
+**逻辑描述**：
+1. 如果数组已满，调用 `resize` 将容量扩展为原来的两倍。
+2. 将 `start` 左移一位（若超出数组起点，则循环到数组末尾）。
+3. 在新 `start` 指针位置插入新值 `val`。
+4. 更新数组元素个数 `count`。
+
+---
+
+#### **2. 尾部插入：`addLast(T val)`**
+
+```java
+public void addLast(T val) {
+    if (isFull()) {
+        resize(size * 2);
+    }
+    arr[end] = val;
+    end = (end + 1) % size; // 循环右移
+    count++;
+}
+```
+
+**逻辑描述**：
+1. 如果数组已满，调用 `resize` 扩展容量。
+2. 在 `end` 指针位置插入新值 `val`。
+3. 将 `end` 右移一位（若超出数组末尾，则循环到数组起点）。
+4. 更新数组元素个数 `count`。
+
+---
+
+#### **3. 头部删除：`removeFirst()`**
+
+```java
+public void removeFirst() {
+    if (isEmpty()) {
+        throw new IllegalStateException("Array is empty");
+    }
+    arr[start] = null; // 删除头部元素
+    start = (start + 1) % size; // 循环右移
+    count--;
+    if (count > 0 && count == size / 4) {
+        resize(size / 2); // 缩容
+    }
+}
+```
+
+**逻辑描述**：
+1. 如果数组为空，抛出异常。
+2. 将 `start` 指向的元素置为 `null`。
+3. 将 `start` 右移一位。
+4. 更新数组元素个数 `count`。
+5. 如果 `count` 减少到容量的四分之一，缩容为原来的一半。
+
+---
+
+#### **4. 尾部删除：`removeLast()`**
+
+```java
+public void removeLast() {
+    if (isEmpty()) {
+        throw new IllegalStateException("Array is empty");
+    }
+    end = (end - 1 + size) % size; // 循环左移
+    arr[end] = null; // 删除尾部元素
+    count--;
+    if (count > 0 && count == size / 4) {
+        resize(size / 2); // 缩容
+    }
+}
+```
+
+**逻辑描述**：
+1. 如果数组为空，抛出异常。
+2. 将 `end` 左移一位。
+3. 删除原 `end` 指向的元素。
+4. 更新数组元素个数 `count`。
+5. 如果 `count` 减少到容量的四分之一，缩容为原来的一半。
+
+---
+
+#### **5. 获取头部元素：`getFirst()`**
+
+```java
+public T getFirst() {
+    if (isEmpty()) {
+        throw new IllegalStateException("Array is empty");
+    }
+    return arr[start];
+}
+```
+
+返回 `start` 指针位置的元素。
+
+---
+
+#### **6. 获取尾部元素：`getLast()`**
+
+```java
+public T getLast() {
+    if (isEmpty()) {
+        throw new IllegalStateException("Array is empty");
+    }
+    return arr[(end - 1 + size) % size];
+}
+```
+
+返回 `end` 前一位置的元素。
+
+---
+
+### **特点总结**
+1. **高效操作**：
+   - 插入和删除操作时间复杂度均为 \(O(1)\)，无需搬移数据。
+   
+2. **动态扩缩容**：
+   - 当元素数量超出容量时自动扩容。
+   - 当元素数量减少到容量四分之一时自动缩容。
+
+3. **循环结构**：
+   - 利用取模运算实现首尾相接，优化了空间利用率。
+
+--- 
+
+### **示例运行**
+
+```java
+CycleArray<Integer> arr = new CycleArray<>();
+arr.addFirst(1);    // [1]
+arr.addLast(2);     // [1, 2]
+arr.addFirst(0);    // [0, 1, 2]
+arr.removeLast();   // [0, 1]
+arr.removeFirst();  // [1]
+
+System.out.println(arr.getFirst()); // 1
+System.out.println(arr.size());     // 1
+```
   
+一个思考题 
+数组增删头部元素的效率真的只能是 
+O
+(
+N
+)
+O(N) 么？
+
+我们都说，在数组增删头部元素的时间复杂度是 
+O
+(
+N
+)
+O(N)，因为需要搬移元素。但是，如果我们使用环形数组，其实是可以实现在 
+O
+(
+1
+)
+O(1) 的时间复杂度内增删头部元素的。
+
+当然，上面实现的这个环形数组只提供了 addFirst, removeFirst, addLast, removeLast 这几个方法，并没有提供 
+我们之前实现的动态数组 的某些方法，比如删除指定索引的元素，获取指定索引的元素，在指定索引插入元素等等。
+
+但是你可以思考一下，难道环形数组实现不了这些方法么？环形数组实现这些方法，时间复杂度相比普通数组，有退化吗？
+
+好像没有吧。
+
+环形数组也可以删除指定索引的元素，也要做数据搬移，和普通数组一样，复杂度是 
+O
+(
+N
+)
+O(N)；
+
+环形数组也可以获取指定索引的元素（随机访问），只不过不是直接访问对应索引，而是要通过 start 计算出真实索引，但计算和访问的时间复杂度依然是 
+O
+(
+1
+)
+O(1)；
+
+环形数组也可以在指定索引插入元素，当然也要做数据搬移，和普通数组一样，复杂度是 
+O
+(
+N
+)
+O(N)。
+
+你可以思考一下是不是这样。如果是这样，为什么编程语言的标准库中提供的动态数组容器底层并没有用环形数组技巧。
+
+环形数组是一种针对特定需求（如队列、双端队列）的优化数据结构，而动态数组作为通用数据结构的底层实现更倾向于直观性和简单性。虽然环形数组可以覆盖动态数组的功能，但由于实现复杂性、性能和空间利用率等原因，标准库中并未使用环形数组作为动态数组的底层实现。
+
+但在需要高效头尾操作的场景下（如实现队列或双端队列），标准库确实通常会采用环形数组技巧。
+
+
+
+下面用数组实现栈
+
+先进后出 这个不难 把动态数组的尾部作为栈顶 然后调用动态数组的api就看呀 因为数组尾部增删查改元素的复杂度都是o（1）
+
+符合栈的要求 
+
+注意这里用的是java标准库的arraylist
+
+下面有个tips：在开发过程中 更倾向于使用arraylist而不是 linkedlist的原因
+
+主要是首先访问速度 arrayList是基于动态数组实现 支持o（1）的随机访问 访问任何元素速度极快 
+linkedList是基于双向链表实现的，访问任何位置的元素需要从头部或者尾部遍历 时间复杂度高 随机访问的效率远低于arrayList
+
+2.内存使用 array内存连续 每个元素只需要存储实际值
+扩容时候虽然会申请新的数组但是空间利用率高 开销主要体现在扩容 
+linkedlist每个系欸但需要额外储存两个指针 内存开销比较大 在数据量较大的时候 
+linkedlist 的额外指针占用的内存可能是实际存储的两倍或者更多
+
+插入和删除性能 
+arrayList在出入或者删除时候 需要搬移数据 时间复杂度为n
+但是如果发生在末尾 复杂度为o1
+
+LinkedList 在链表头尾插入为o1
+中间的话 需要遍历 复杂度为on
+一般情况下插入和删除的操作没有那么复杂 linkedlist的性能优势有限 
+
+遍历性能 arrayList 遍历性能更高 因为数组在内存中是连续存储的 缓存命中率高 
+对于现在cpu和内存架构 arrayList的线性访问非常高效
+LinkedList 缓存性能较差
+对于大量元素的遍历 linkedlist的性能远低于arrayList
+
+5. 实际应用场景
+在大多数应用场景中，随机访问和顺序遍历是最常见的操作，而 ArrayList 对这两类操作的支持都非常高效。
+LinkedList 的优势（高效的头尾插入与删除）在实际场景中不常用。对于需要高效头尾操作的情况
+，通常会使用 Deque（双端队列）或 ArrayDeque，而非 LinkedList。
+
+6. 可维护性与代码习惯
+ArrayList 是 Java 中更常用的集合类，绝大多数开发者熟悉其性能特性和用法。
+LinkedList 的实现细节（如链表节点的引用）增加了理解和维护的复杂性。
+在现代开发中，性能权衡常常优先考虑内存和 CPU 缓存性能，而不是理论上的操作复杂度
+
+。
+
+下面继续用数组实现栈 
+
+// 用数组作为底层数据结构实现栈
+public class MyArrayStack<E> {
+    private ArrayList<E> list = new ArrayList<>();
+
+    // 向栈顶加入元素，时间复杂度 O(1)
+    public void push(E e) {
+        list.add(e);
+    }
+
+    // 从栈顶弹出元素，时间复杂度 O(1)
+    public E pop() {
+        return list.remove(list.size() - 1);
+    }
+
+    // 查看栈顶元素，时间复杂度 O(1)
+    public E peek() {
+        return list.get(list.size() - 1);
+    }
+
+    // 返回栈中的元素个数，时间复杂度 O(1)
+    public int size() {
+        return list.size();
+    }
+}
+数组尾部当作栈顶就好 
+
+能不能让数组的头部作为栈顶 可以的 使用循环数组就好了 
+
+下面用数组是实现队列 
+
+public class MyArrayQueue<E> {
+    private CycleArray<E> arr;
+
+    public MyArrayQueue() {
+        arr = new CycleArray<>();
+    }
+
+    public void push(E t) {
+        arr.addLast(t);
+    }
+
+    public E pop() {
+        return arr.removeFirst();
+    }
+
+    public E peek() {
+        return arr.getFirst();
+    }
+
+    public int size() {
+        return arr.size();
+    }
+}
+
+下面是双端队列的原理和实现 
+基本原理 多一些操作而已 
+
+class MyDeque<E> {
+    // 从队头插入元素，时间复杂度 O(1)
+    void addFirst(E e);
+
+    // 从队尾插入元素，时间复杂度 O(1)
+    void addLast(E e);
+
+    // 从队头删除元素，时间复杂度 O(1)
+    E removeFirst();
+
+    // 从队尾删除元素，时间复杂度 O(1)
+    E removeLast();
+
+    // 查看队头元素，时间复杂度 O(1)
+    E peekFirst();
+
+    // 查看队尾元素，时间复杂度 O(1)
+    E peekLast();
+}
+
+import java.util.LinkedList;
+
+public class MyListDeque<E> {
+    private LinkedList<E> list = new LinkedList<>();
+
+    // 从队头插入元素，时间复杂度 O(1)
+    void addFirst(E e) {
+        list.addFirst(e);
+    }
+
+    // 从队尾插入元素，时间复杂度 O(1)
+    void addLast(E e) {
+        list.addLast(e);
+    }
+
+    // 从队头删除元素，时间复杂度 O(1)
+    E removeFirst() {
+        return list.removeFirst();
+    }
+
+    // 从队尾删除元素，时间复杂度 O(1)
+    E removeLast() {
+        return list.removeLast();
+    }
+
+    // 查看队头元素，时间复杂度 O(1)
+    E peekFirst() {
+        return list.getFirst();
+    }
+
+    // 查看队尾元素，时间复杂度 O(1)
+    E peekLast() {
+        return list.getLast();
+    }
+
+    public static void main(String[] args) {
+        MyListDeque<Integer> deque = new MyListDeque<>();
+        deque.addFirst(1);
+        deque.addFirst(2);
+        deque.addLast(3);
+        deque.addLast(4);
+
+        System.out.println(deque.removeFirst()); // 2
+        System.out.println(deque.removeLast()); // 4
+        System.out.println(deque.peekFirst()); // 1
+        System.out.println(deque.peekLast()); // 3
+    }
+}
+
+数组实现双端队列也很简单 就是使用环形数组 
+
+class MyArrayDeque<E> {
+    private CycleArray<E> arr = new CycleArray<>();
+
+    // 从队头插入元素，时间复杂度 O(1)
+    void addFirst(E e) {
+        arr.addFirst(e);
+    }
+
+    // 从队尾插入元素，时间复杂度 O(1)
+    void addLast(E e) {
+        arr.addLast(e);
+    }
+
+    // 从队头删除元素，时间复杂度 O(1)
+    E removeFirst() {
+        return arr.removeFirst();
+    }
+
+    // 从队尾删除元素，时间复杂度 O(1)
+    E removeLast() {
+        return arr.removeLast();
+    }
+
+    // 查看队头元素，时间复杂度 O(1)
+    E peekFirst() {
+        return arr.getFirst();
+    }
+
+    // 查看队尾元素，时间复杂度 O(1)
+    E peekLast() {
+        return arr.getLast();
+    }
+}
+
