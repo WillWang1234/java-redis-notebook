@@ -1,0 +1,13 @@
+首先是阐明 一个初学者很容易犯的错误 
+哈希表和map是一个东西吗 
+不是  
+map是一个java接口 仅仅声明了若干个方法 并没有 给出方法的具体实现
+
+interface Map<k,v>{
+  V get (k key);
+  void put(k key, V value);
+  V remove(k key);
+}
+
+Map接口 本身 只定义了键值映射的一系列操作 HashMap这种数据结构根据自身特点是实现这些操作 还有其他数据结构也实现了这个接口 比如 treemap LinkedHashMap等等
+
