@@ -1,0 +1,118 @@
+先说概念 队列和栈都是操作受限的数据结构 主要是和基本的数组和链表相比 它们提供的api是不完整的 
+
+  队列只能在一端插入元素 另一端删除元素 栈只能在某一端插入和删除元素 
+
+  形象的说 队列只允许在队尾插入元素 在队头删除元素 栈只允许在栈顶插入元素 从栈顶删除元素 
+
+  队列的基本api
+  class MyQueue<E> {
+      void push(E e);复杂度01
+      E pop();复杂度01
+      E peek;复杂度01
+      int size();复杂度01
+  }
+  栈的api
+    class myStack<E>{
+    //向栈顶插入元素 时间复杂度是o1；
+    void push<E e>;
+    E pop();
+    E peek();
+    int size();
+    都是o1复杂度
+    }
+    下面用链表实现栈
+      import java.util.LinkedList;
+
+// 用链表作为底层数据结构实现栈
+public class MyLinkedStack<E> {
+    private final LinkedList<E> list = new LinkedList<>();
+
+    // 向栈顶加入元素，时间复杂度 O(1)
+    public void push(E e) {
+        list.addLast(e);
+    }
+
+    // 从栈顶弹出元素，时间复杂度 O(1)
+    public E pop() {
+        return list.removeLast();
+    }
+
+    // 查看栈顶元素，时间复杂度 O(1)
+    public E peek() {
+        return list.getLast();
+    }
+
+    // 返回栈中的元素个数，时间复杂度 O(1)
+    public int size() {
+        return list.size();
+    }
+
+    public static void main(String[] args) {
+        MyLinkedStack<Integer> stack = new MyLinkedStack<>();
+        stack.push(1);
+        stack.push(2);
+        stack.push(3);
+
+        System.out.println(stack.peek()); // 3
+        System.out.println(stack.pop()); // 3
+        System.out.println(stack.peek()); // 2
+    }
+}
+
+用链表实现队列 
+  import java.util.LinkedList;
+
+// 用链表作为底层数据结构实现队列
+public class MyLinkedQueue<E> {
+    private final LinkedList<E> list = new LinkedList<>();
+
+    // 向队尾插入元素，时间复杂度 O(1)
+    public void push(E e) {
+        list.addLast(e);
+    }
+
+    // 从队头删除元素，时间复杂度 O(1)
+    public E pop() {
+        return list.removeFirst();
+    }
+
+    // 查看队头元素，时间复杂度 O(1)
+    public E peek() {
+        return list.getFirst();
+    }
+
+    // 返回队列中的元素个数，时间复杂度 O(1)
+    public int size() {
+        return list.size();
+    }
+
+    public static void main(String[] args) {
+        MyLinkedQueue<Integer> queue = new MyLinkedQueue<>();
+        queue.push(1);
+        queue.push(2);
+        queue.push(3);
+
+        System.out.println(queue.peek()); // 1
+        System.out.println(queue.pop()); // 1
+        System.out.println(queue.pop()); // 2
+        System.out.println(queue.peek()); // 3
+    }
+}
+
+环形数组的原理 
+  数组本身不可能是环形的 不可能 数组就是一块连续的内存空间 
+  但是我们可以在逻辑上把数组变成环形的 
+
+  // 长度为 5 的数组
+int[] arr = new int[]{1, 2, 3, 4, 5};
+int i = 0;
+// 模拟环形数组，这个循环永远不会结束
+while (i < arr.length) {
+    System.out.println(arr[i]);
+    i = (i + 1) % arr.length;
+}
+  关键在于求模运算 求余数 
+
+    关键点 注意开闭区间 
+    
+  
