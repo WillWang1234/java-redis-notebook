@@ -253,6 +253,1023 @@ toDelete.prev = null;
 
 
 }
+关键点一、同时持有头尾节点的引用
+在力扣做题时，一般题目给我们传入的就是单链表的头指针。但是在实际开发中，用的都是双链表，而双链表一般会同时持有头尾节点的引用。
+
+因为在软件开发中，在容器尾部添加元素是个非常高频的操作，双链表持有尾部节点的引用，就可以在 
+O
+(
+1
+)
+O(1) 的时间复杂度内完成尾部添加元素的操作。
+
+对于单链表来说，持有尾部节点的引用也有优化效果。比如你要在单链表尾部添加元素，如果没有尾部节点的引用，你就需要遍历整个链表找到尾部节点，时间复杂度是 
+O
+(
+n
+)
+O(n)；如果有尾部节点的引用，就可以在 
+O
+(
+1
+)
+O(1) 的时间复杂度内完成尾部添加元素的操作。
+
+细心的读者可能会说，即便如此，如果删除一次单链表的尾结点，那么之前尾结点的引用就失效了，还是需要遍历一遍链表找到尾结点。
+
+是的，但你再仔细想想，删除单链表尾结点的时候，是不是也得遍历到倒数第二个节点（尾结点的前驱），才能通过指针操作把尾结点删掉？那么这个时候，你不就可以顺便把尾结点的引用给更新了吗？
+
+关键点2：虚拟头尾节点
+
+原理很简单 就是在创建双链表时候就创建一个虚拟头节点和一个虚拟尾节点 无论双链表是否为空 这两个节点都存在 这样就不会出现空指针问题 可以避免很多边界情况的处理 
+
+dummyHead<->dummyTail
+如果你添加123几个元素 就长这样  
+dummyHead <-> 1 <-> 2 <-> 3 <-> dummyTail
+虚拟头节点会占用一点内存空间 
+对于单链表 虚拟头节点有一定的简化作用  但是虚拟tail没什么太大作用
+
+虚拟节点是内部实现 对外不可见
+
+关键点3 内存泄漏 
+
+删除元素的时候要注意内存泄漏问题 
+
+java的垃圾回收机制是看这个对象是否被别人引用
+
+下面 双链表代码实现 
+
+import java.util.NosuchElementException;
+
+public class myLinkedList<E>{
+      //虚拟头尾节点 
+      final private Node <E> head,tail;
+      private int size;
+      //双链表节点
+      private static class Node<E>{
+         E val;
+         Node<E> next;
+         Node<E>prev;
+         Node (E val){
+         this.val = val;
+         }
+      }
+      //构造函数初始化虚拟头尾节点 
+      public myLinkedList(){
+         this.head = new Node<>(null);
+         this.tail = new Node<>(null);
+         head.next = tail;
+         tail.prev = head;
+         this.size = 0;
+      }
+
+     //增
+     public void addLast (E e){
+         Node<E> x = new Node <>(e);
+         Node<E>temp =tail.prev;
+         temp.next = x;
+         x.prev = temp;
+         x.next = tail;
+         tail.prev = x;
+         size++;
+     }
+      public void addFirst(E e){
+           Node<E> x = new Node<> (e);
+            Node<E> temp = head.next;
+            temp.prev = x;
+            head.next = x;
+            x.prev = head;
+            size++;
+      }
+      public void add(int index, E element) {
+        checkPositionIndex(index);
+        if (index == size) {
+            addLast(element);
+            return;
+        }
+
+        // 找到 index 对应的 Node
+        Node<E> p = getNode(index);
+        Node<E> temp = p.prev;
+        // temp <-> p
+
+        // 新要插入的 Node
+        Node<E> x = new Node<>(element);
+
+        p.prev = x;
+        temp.next = x;
+
+        x.prev = temp;
+        x.next = p;
+
+        // temp <-> x <-> p
+
+        size++;
+    }
+
+    // ***** 删 *****
+
+    public E removeFirst() {
+        if (size < 1) {
+            throw new NoSuchElementException();
+        }
+        // 虚拟节点的存在是我们不用考虑空指针的问题
+        Node<E> x = head.next;
+        Node<E> temp = x.next;
+        // head <-> x <-> temp
+        head.next = temp;
+        temp.prev = head;
+
+        x.prev = null;
+        x.next = null;
+        // head <-> temp
+
+        size--;
+        return x.val;
+    }
+
+    public E removeLast() {
+        if (size < 1) {
+            throw new NoSuchElementException();
+        }
+        Node<E> x = tail.prev;
+        Node<E> temp = tail.prev.prev;
+        // temp <-> x <-> tail
+
+        tail.prev = temp;
+        temp.next = tail;
+
+        x.prev = null;
+        x.next = null;
+        // temp <-> tail
+
+        size--;
+        return x.val;
+    }
+
+    public E remove(int index) {
+        checkElementIndex(index);
+        // 找到 index 对应的 Node
+        Node<E> x = getNode(index);
+        Node<E> prev = x.prev;
+        Node<E> next = x.next;
+        // prev <-> x <-> next
+        prev.next = next;
+        next.prev = prev;
+
+        x.prev = x.next = null;
+        // prev <-> next
+
+        size--;
+
+        return x.val;
+    }
+
+    // ***** 查 *****
+
+    public E get(int index) {
+        checkElementIndex(index);
+        // 找到 index 对应的 Node
+        Node<E> p = getNode(index);
+
+        return p.val;
+    }
+
+    public E getFirst() {
+        if (size < 1) {
+            throw new NoSuchElementException();
+        }
+
+        return head.next.val;
+    }
+
+    public E getLast() {
+        if (size < 1) {
+            throw new NoSuchElementException();
+        }
+
+        return tail.prev.val;
+    }
+
+    // ***** 改 *****
+
+    public E set(int index, E val) {
+        checkElementIndex(index);
+        // 找到 index 对应的 Node
+        Node<E> p = getNode(index);
+
+        E oldVal = p.val;
+        p.val = val;
+
+        return oldVal;
+    }
+
+    // ***** 其他工具函数 *****
+
+    public int size() {
+        return size;
+    }
+
+    public boolean isEmpty() {
+        return size == 0;
+    }
+
+    private Node<E> getNode(int index) {
+        checkElementIndex(index);
+        Node<E> p = head.next;
+        // TODO: 可以优化，通过 index 判断从 head 还是 tail 开始遍历
+        for (int i = 0; i < index; i++) {
+            p = p.next;
+        }
+        return p;
+    }
+
+    private boolean isElementIndex(int index) {
+        return index >= 0 && index < size;
+    }
+
+    private boolean isPositionIndex(int index) {
+        return index >= 0 && index <= size;
+    }
+
+    // 检查 index 索引位置是否可以存在元素
+    private void checkElementIndex(int index) {
+        if (!isElementIndex(index))
+            throw new IndexOutOfBoundsException("Index: " + index + ", Size: " + size);
+    }
+
+    // 检查 index 索引位置是否可以添加元素
+    private void checkPositionIndex(int index) {
+        if (!isPositionIndex(index))
+            throw new IndexOutOfBoundsException("Index: " + index + ", Size: " + size);
+    }
+
+    private void display() {
+        System.out.println("size = " + size);
+        for (Node<E> p = head.next; p != tail; p = p.next) {
+            System.out.print(p.val + " <-> ");
+        }
+        System.out.println("null");
+        System.out.println();
+    }
+
+    public static void main(String[] args) {
+        MyLinkedList<Integer> list = new MyLinkedList<>();
+        list.addLast(1);
+        list.addLast(2);
+        list.addLast(3);
+        list.addFirst(0);
+        list.add(2, 100);
+
+        list.display();
+        // size = 5
+        // 0 <-> 1 <-> 100 <-> 2 -> 3 -> null
+    }
+      
+}这段代码实现了一个双向链表 (`MyLinkedList`) 的完整实现，包括常见的增删改查操作。以下是逐步解析代码中各部分的细节和设计：
+
+---
+
+### **核心结构：Node**
+```java
+private static class Node<E> {
+    E val;
+    Node<E> next;
+    Node<E> prev;
+
+    Node(E val) {
+        this.val = val;
+    }
+}
+```
+每个节点 `Node<E>` 是一个泛型类型，包含三个属性：
+1. `val`：节点值，存储数据。
+2. `next`：指向后继节点。
+3. `prev`：指向前驱节点。
+
+---
+
+### **链表的虚拟头尾节点**
+```java
+final private Node<E> head, tail;
+private int size;
+```
+链表维护两个虚拟节点 `head` 和 `tail`：
+1. **头节点 (`head`)**：始终指向链表第一个元素的前驱。
+2. **尾节点 (`tail`)**：始终指向链表最后一个元素的后继。
+
+通过 `head` 和 `tail`，链表可以简化边界处理，如插入第一个节点或删除最后一个节点时，避免 `null` 指针问题。
+
+---
+
+### **构造函数**
+```java
+public MyLinkedList() {
+    this.head = new Node<>(null);
+    this.tail = new Node<>(null);
+    head.next = tail;
+    tail.prev = head;
+    this.size = 0;
+}
+```
+初始化时：
+- `head.next` 指向 `tail`，`tail.prev` 指向 `head`。
+- `size` 初始为 0。
+
+这种结构保证链表即使为空，`head` 和 `tail` 也能始终正确地指向对方。
+
+---
+
+### **添加操作（增）**
+
+#### **1. addLast**
+```java
+public void addLast(E e) {
+    Node<E> x = new Node<>(e);
+    Node<E> temp = tail.prev;
+
+    temp.next = x;
+    x.prev = temp;
+
+    x.next = tail;
+    tail.prev = x;
+
+    size++;
+}
+```
+- **逻辑描述**：
+  1. 创建新节点 `x`。
+  2. 插入到 `tail.prev` 和 `tail` 之间，保持双向连接完整。
+  3. 更新链表长度 `size`。
+
+#### **2. addFirst**
+```java
+public void addFirst(E e) {
+    Node<E> x = new Node<>(e);
+    Node<E> temp = head.next;
+
+    temp.prev = x;
+    x.next = temp;
+
+    head.next = x;
+    x.prev = head;
+
+    size++;
+}
+```
+- **逻辑描述**：
+  1. 创建新节点 `x`。
+  2. 插入到 `head` 和 `head.next` 之间。
+  3. 更新链表长度 `size`。
+
+#### **3. add(index, element)**
+```java
+public void add(int index, E element) {
+    checkPositionIndex(index);
+
+    if (index == size) {
+        addLast(element);
+        return;
+    }
+
+    Node<E> p = getNode(index);
+    Node<E> temp = p.prev;
+
+    Node<E> x = new Node<>(element);
+
+    p.prev = x;
+    temp.next = x;
+
+    x.prev = temp;
+    x.next = p;
+
+    size++;
+}
+```
+- **逻辑描述**：
+  1. 检查索引合法性。
+  2. 如果 `index == size`，直接调用 `addLast`。
+  3. 否则，找到 `index` 对应节点 `p`，将新节点 `x` 插入到 `p.prev` 和 `p` 之间。
+  4. 更新链表长度。
+
+---
+
+### **删除操作（删）**
+
+#### **1. removeFirst**
+```java
+public E removeFirst() {
+    if (size < 1) throw new NoSuchElementException();
+
+    Node<E> x = head.next;
+    Node<E> temp = x.next;
+
+    head.next = temp;
+    temp.prev = head;
+
+    x.prev = null;
+    x.next = null;
+
+    size--;
+    return x.val;
+}
+```
+- **逻辑描述**：
+  1. 检查链表是否为空。
+  2. 删除 `head.next`，将 `head` 直接连接到原来的第二个节点。
+  3. 返回被删除节点的值。
+
+#### **2. removeLast**
+```java
+public E removeLast() {
+    if (size < 1) throw new NoSuchElementException();
+
+    Node<E> x = tail.prev;
+    Node<E> temp = x.prev;
+
+    tail.prev = temp;
+    temp.next = tail;
+
+    x.prev = null;
+    x.next = null;
+
+    size--;
+    return x.val;
+}
+```
+- **逻辑描述**：
+  1. 检查链表是否为空。
+  2. 删除 `tail.prev`，将 `tail` 直接连接到倒数第二个节点。
+  3. 返回被删除节点的值。
+
+#### **3. remove(index)**
+```java
+public E remove(int index) {
+    checkElementIndex(index);
+
+    Node<E> x = getNode(index);
+    Node<E> prev = x.prev;
+    Node<E> next = x.next;
+
+    prev.next = next;
+    next.prev = prev;
+
+    x.prev = x.next = null;
+
+    size--;
+    return x.val;
+}
+```
+- **逻辑描述**：
+  1. 检查索引合法性。
+  2. 找到 `index` 对应节点 `x`，断开其与前后节点的链接。
+  3. 返回被删除节点的值。
+
+---
+
+### **查找操作（查）**
+
+#### **1. get(index)**
+```java
+public E get(int index) {
+    checkElementIndex(index);
+    return getNode(index).val;
+}
+```
+- 通过 `getNode` 找到 `index` 对应的节点，返回节点值。
+
+#### **2. getNode(index)**
+```java
+private Node<E> getNode(int index) {
+    checkElementIndex(index);
+
+    Node<E> p = head.next;
+    for (int i = 0; i < index; i++) {
+        p = p.next;
+    }
+    return p;
+}
+```
+- **优化建议**：根据索引 `index` 大小，选择从 `head` 或 `tail` 开始遍历。
+
+---
+
+### **工具方法**
+- `isElementIndex`：检查索引是否合法（0 到 size-1）。
+- `isPositionIndex`：检查插入位置是否合法（0 到 size）。
+- `checkElementIndex` 和 `checkPositionIndex`：抛出索引越界异常。
+
+---
+
+### **输出方法**
+```java
+private void display() {
+    System.out.println("size = " + size);
+    for (Node<E> p = head.next; p != tail; p = p.next) {
+        System.out.print(p.val + " <-> ");
+    }
+    System.out.println("null");
+}
+```
+- 遍历链表输出所有节点值，方便调试。
+
+---
+
+### **运行结果**
+```java
+MyLinkedList<Integer> list = new MyLinkedList<>();
+list.addLast(1);
+list.addLast(2);
+list.addLast(3);
+list.addFirst(0);
+list.add(2, 100);
+
+list.display();
+```
+输出：
+```
+size = 5
+0 <-> 1 <-> 100 <-> 2 <-> 3 <-> null
+```
+
+下面我们来看 单链表代码实现 
+
+import java.util.NoSuchElementException;
+
+public class MyLinkedList2<E> {
+
+    private static class Node<E> {
+        E val;
+        Node<E> next;
+
+        Node(E val) {
+            this.val = val;
+            this.next = null;
+        }
+    }
+
+    private Node<E> head;
+    // 实际的尾部节点引用
+    private Node<E> tail;
+    private int size;
+
+    public MyLinkedList2() {
+        this.head = new Node<>(null);
+        this.tail = head;
+        this.size = 0;
+    }
+
+    public void addFirst(E e) {
+        Node<E> newNode = new Node<>(e);
+        newNode.next = head.next;
+        head.next = newNode;
+        if (size == 0) {
+            tail = newNode;
+        }
+        size++;
+    }
+
+    public void addLast(E e) {
+        Node<E> newNode = new Node<>(e);
+        tail.next = newNode;
+        tail = newNode;
+        size++;
+    }
+
+    public void add(int index, E element) {
+        checkPositionIndex(index);
+
+        if (index == size) {
+            addLast(element);
+            return;
+        }
+
+        Node<E> prev = head;
+        for (int i = 0; i < index; i++) {
+            prev = prev.next;
+        }
+        Node<E> newNode = new Node<>(element);
+        newNode.next = prev.next;
+        prev.next = newNode;
+        size++;
+    }
+
+    public E removeFirst() {
+        if (isEmpty()) {
+            throw new NoSuchElementException();
+        }
+        Node<E> first = head.next;
+        head.next = first.next;
+        if (size == 1) {
+            tail = head;
+        }
+        size--;
+        return first.val;
+    }
+
+    public E removeLast() {
+        if (isEmpty()) {
+            throw new NoSuchElementException();
+        }
+
+        Node<E> prev = head;
+        while (prev.next != tail) {
+            prev = prev.next;
+        }
+        E val = tail.val;
+        prev.next = null;
+        tail = prev;
+        size--;
+        return val;
+    }
+
+    public E remove(int index) {
+        checkElementIndex(index);
+
+        Node<E> prev = head;
+        for (int i = 0; i < index; i++) {
+            prev = prev.next;
+        }
+
+        Node<E> nodeToRemove = prev.next;
+        prev.next = nodeToRemove.next;
+        // 删除的是最后一个元素
+        if (index == size - 1) {
+            tail = prev;
+        }
+        size--;
+        return nodeToRemove.val;
+    }
+
+    // ***** 查 *****
+
+    public E getFirst() {
+        if (isEmpty()) {
+            throw new NoSuchElementException();
+        }
+        return head.next.val;
+    }
+
+    public E getLast() {
+        if (isEmpty()) {
+            throw new NoSuchElementException();
+        }
+        return getNode(size - 1).val;
+    }
+
+    public E get(int index) {
+        checkElementIndex(index);
+        Node<E> p = getNode(index);
+        return p.val;
+    }
+
+    // ***** 改 *****
+
+    public E set(int index, E element) {
+        checkElementIndex(index);
+        Node<E> p = getNode(index);
+
+        E oldVal = p.val;
+        p.val = element;
+
+        return oldVal;
+    }
+
+    // ***** 其他工具函数 *****
+    public int size() {
+        return size;
+    }
+
+    public boolean isEmpty() {
+        return size == 0;
+    }
+
+    private boolean isElementIndex(int index) {
+        return index >= 0 && index < size;
+    }
+
+    private boolean isPositionIndex(int index) {
+        return index >= 0 && index <= size;
+    }
+
+    // 检查 index 索引位置是否可以存在元素
+    private void checkElementIndex(int index) {
+        if (!isElementIndex(index))
+            throw new IndexOutOfBoundsException("Index: " + index + ", Size: " + size);
+    }
+
+    // 检查 index 索引位置是否可以添加元素
+    private void checkPositionIndex(int index) {
+        if (!isPositionIndex(index))
+            throw new IndexOutOfBoundsException("Index: " + index + ", Size: " + size);
+    }
+
+    // 返回 index 对应的 Node
+    // 注意：请保证传入的 index 是合法的
+    private Node<E> getNode(int index) {
+        Node<E> p = head.next;
+        for (int i = 0; i < index; i++) {
+            p = p.next;
+        }
+        return p;
+    }
+
+    public static void main(String[] args) {
+        MyLinkedList2<Integer> list = new MyLinkedList2<>();
+        list.addFirst(1);
+        list.addFirst(2);
+        list.addLast(3);
+        list.addLast(4);
+        list.add(2, 5);
+
+        System.out.println(list.removeFirst()); // 2
+        System.out.println(list.removeLast()); // 4
+        System.out.println(list.remove(1)); // 5
+
+        System.out.println(list.getFirst()); // 1
+        System.out.println(list.getLast()); // 3
+        System.out.println(list.get(1)); // 3
+    }
+}
+
+
+这段代码实现了一个基于单链表的 `MyLinkedList2` 类，功能包括增、删、查、改操作，支持在头尾以及指定索引位置进行操作。与前一个双链表实现相比，此代码采用了更简单的单链表结构，仅在每个节点中维护一个 `next` 引用。
+
+以下是对代码细节的讲解：
+
+---
+
+### **核心结构：Node**
+
+```java
+private static class Node<E> {
+    E val;
+    Node<E> next;
+
+    Node(E val) {
+        this.val = val;
+        this.next = null;
+    }
+}
+```
+
+每个节点包含：
+- `val`：节点存储的值。
+- `next`：指向下一个节点。
+
+与双链表相比，单链表的节点不维护前驱引用 (`prev`)，因此只能沿着 `next` 单向遍历链表。
+
+---
+
+### **链表的头尾节点**
+
+```java
+private Node<E> head;
+private Node<E> tail;
+private int size;
+```
+
+- `head`：一个哑节点（dummy node），用于简化边界处理（如插入或删除第一个节点时）。
+- `tail`：指向链表的最后一个实际节点，便于在尾部快速插入元素。
+- `size`：链表的元素个数。
+
+---
+
+### **构造函数**
+
+```java
+public MyLinkedList2() {
+    this.head = new Node<>(null);
+    this.tail = head;
+    this.size = 0;
+}
+```
+
+- 初始化时，`head` 和 `tail` 都指向哑节点。
+- 链表为空时，`head.next == null`，`size == 0`。
+
+---
+
+### **添加操作（增）**
+
+#### **1. `addFirst(E e)`**
+```java
+public void addFirst(E e) {
+    Node<E> newNode = new Node<>(e);
+    newNode.next = head.next;
+    head.next = newNode;
+    if (size == 0) {
+        tail = newNode;
+    }
+    size++;
+}
+```
+
+- **逻辑描述**：
+  1. 创建新节点 `newNode`。
+  2. 将新节点插入到 `head` 和 `head.next` 之间。
+  3. 如果链表为空（`size == 0`），更新 `tail` 指向新节点。
+  4. 增加链表长度。
+
+---
+
+#### **2. `addLast(E e)`**
+```java
+public void addLast(E e) {
+    Node<E> newNode = new Node<>(e);
+    tail.next = newNode;
+    tail = newNode;
+    size++;
+}
+```
+
+- **逻辑描述**：
+  1. 创建新节点 `newNode`。
+  2. 将新节点连接到当前 `tail` 节点后面。
+  3. 更新 `tail` 指向新节点。
+  4. 增加链表长度。
+
+---
+
+#### **3. `add(int index, E element)`**
+```java
+public void add(int index, E element) {
+    checkPositionIndex(index);
+
+    if (index == size) {
+        addLast(element);
+        return;
+    }
+
+    Node<E> prev = head;
+    for (int i = 0; i < index; i++) {
+        prev = prev.next;
+    }
+    Node<E> newNode = new Node<>(element);
+    newNode.next = prev.next;
+    prev.next = newNode;
+    size++;
+}
+```
+
+- **逻辑描述**：
+  1. 检查插入索引合法性。
+  2. 如果索引等于链表长度，调用 `addLast`。
+  3. 找到插入位置的前一个节点 `prev`。
+  4. 插入新节点 `newNode`，保持链表完整性。
+  5. 增加链表长度。
+
+---
+
+### **删除操作（删）**
+
+#### **1. `removeFirst()`**
+```java
+public E removeFirst() {
+    if (isEmpty()) {
+        throw new NoSuchElementException();
+    }
+    Node<E> first = head.next;
+    head.next = first.next;
+    if (size == 1) {
+        tail = head;
+    }
+    size--;
+    return first.val;
+}
+```
+
+- **逻辑描述**：
+  1. 检查链表是否为空。
+  2. 移除 `head.next`（第一个节点），将 `head` 直接连接到第二个节点。
+  3. 如果链表只有一个节点，更新 `tail` 指向 `head`。
+  4. 返回被删除节点的值。
+
+---
+
+#### **2. `removeLast()`**
+```java
+public E removeLast() {
+    if (isEmpty()) {
+        throw new NoSuchElementException();
+    }
+
+    Node<E> prev = head;
+    while (prev.next != tail) {
+        prev = prev.next;
+    }
+    E val = tail.val;
+    prev.next = null;
+    tail = prev;
+    size--;
+    return val;
+}
+```
+
+- **逻辑描述**：
+  1. 检查链表是否为空。
+  2. 遍历链表找到尾节点的前一个节点 `prev`。
+  3. 将 `prev` 的 `next` 置为 `null`，并更新 `tail`。
+  4. 返回被删除节点的值。
+
+---
+
+#### **3. `remove(int index)`**
+```java
+public E remove(int index) {
+    checkElementIndex(index);
+
+    Node<E> prev = head;
+    for (int i = 0; i < index; i++) {
+        prev = prev.next;
+    }
+
+    Node<E> nodeToRemove = prev.next;
+    prev.next = nodeToRemove.next;
+    if (index == size - 1) {
+        tail = prev;
+    }
+    size--;
+    return nodeToRemove.val;
+}
+```
+
+- **逻辑描述**：
+  1. 检查索引合法性。
+  2. 找到被删除节点的前一个节点 `prev`。
+  3. 删除 `prev.next`，保持链表完整性。
+  4. 如果删除的是最后一个节点，更新 `tail`。
+  5. 返回被删除节点的值。
+
+---
+
+### **查找操作（查）**
+
+#### **1. `getFirst()`**
+```java
+public E getFirst() {
+    if (isEmpty()) {
+        throw new NoSuchElementException();
+    }
+    return head.next.val;
+}
+```
+- 返回链表的第一个节点值。
+
+---
+
+#### **2. `getLast()`**
+```java
+public E getLast() {
+    if (isEmpty()) {
+        throw new NoSuchElementException();
+    }
+    return tail.val;
+}
+```
+- 返回链表的最后一个节点值。
+
+---
+
+#### **3. `get(int index)`**
+```java
+public E get(int index) {
+    checkElementIndex(index);
+    Node<E> p = getNode(index);
+    return p.val;
+}
+```
+- 根据索引获取节点值。
+
+---
+
+### **运行结果**
+```java
+MyLinkedList2<Integer> list = new MyLinkedList2<>();
+list.addFirst(1);  // 1
+list.addFirst(2);  // 2 -> 1
+list.addLast(3);   // 2 -> 1 -> 3
+list.addLast(4);   // 2 -> 1 -> 3 -> 4
+list.add(2, 5);    // 2 -> 1 -> 5 -> 3 -> 4
+
+System.out.println(list.removeFirst()); // 输出 2
+System.out.println(list.removeLast());  // 输出 4
+System.out.println(list.remove(1));     // 输出 5
+
+System.out.println(list.getFirst());    // 输出 1
+System.out.println(list.getLast());     // 输出 3
+System.out.println(list.get(1));        // 输出 3
+```
+
+#### 输出：
+```
+2
+4
+5
+1
+3
+3
+```
 
 
 
