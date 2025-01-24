@@ -1586,4 +1586,83 @@ hash集合
 
 哈希表的键 其实就是哈希集合 
 
-哈希集合
+哈希集合原理 
+
+主要使用场景 是去重 因为特性是不会出现重复元素 可以在01的时间增删元素 可以在01的时间判断一个元素是否存在 
+
+哈希集合的主要api如下 ：
+
+class HashSet {
+    // 增，向哈希集合中添加一个元素，复杂度 O(1)
+    // 如果元素已存在，则什么都不会发生
+    public void add(int key);
+
+    // 删，从哈希集合中移除一个元素，复杂度 O(1)
+    // 如果元素不存在，则什么都不会发生
+    public void remove(int key);
+
+    // 查，判断元素是否存在，复杂度 O(1)
+    public boolean contains(int key);
+}
+
+因为哈希集合的元素就是哈希表里面的键，所以哈希集合和哈希表具有相同的限制，比如不能依赖哈希集合的元素遍历顺序、哈希集合中的元素应该是不可变的等等，具体限制和原因可以回顾前文 
+哈希表特性及原理。
+
+哈希集合代码实现 
+
+
+import java.util.HashMap;
+
+public class MyHashSet<K> {
+    // 随便创建一个值，作为 value 占位符
+    private static final Object PRESENT = new Object();
+    // 底层 HashMap，我这里直接用标准库了，你用前文自己实现的哈希表也可以
+    private final HashMap<K, Object> map = new HashMap<>();
+
+    public void add(K key) {
+        // 向哈希表添加一个键值对
+        map.put(key, PRESENT);
+    }
+
+    public void remove(K key) {
+        // 从哈希表中移除键 key
+        map.remove(key);
+    }
+
+    public boolean contains(K key) {
+        // 判断哈希表中是否包含键 key
+        return map.containsKey(key);
+    }
+
+    public int size() {
+        return map.size();
+    }
+}
+
+import java.util.HashMap;
+
+public class MyHashSet<K> {
+    // 随便创建一个值，作为 value 占位符
+    private static final Object PRESENT = new Object();
+    // 底层 HashMap，我这里直接用标准库了，你用前文自己实现的哈希表也可以
+    private final HashMap<K, Object> map = new HashMap<>();
+
+    public void add(K key) {
+        // 向哈希表添加一个键值对
+        map.put(key, PRESENT);
+    }
+
+    public void remove(K key) {
+        // 从哈希表中移除键 key
+        map.remove(key);
+    }
+
+    public boolean contains(K key) {
+        // 判断哈希表中是否包含键 key
+        return map.containsKey(key);
+    }
+
+    public int size() {
+        return map.size();
+    }
+}
