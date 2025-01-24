@@ -11,3 +11,1579 @@ interface Map<k,v>{
 
 Map接口 本身 只定义了键值映射的一系列操作 HashMap这种数据结构根据自身特点是实现这些操作 还有其他数据结构也实现了这个接口 比如 treemap LinkedHashMap等等
 
+你可以说 hashmap的get put remove的复杂度都是01
+但是你不能说map接口的复杂度都是01 因为换成其他的实现类 比如底层二叉树结构实现的treemap 这种方法的复杂度都变成0 logn了
+
+哈希表的基本原理 
+
+哈希表可以理解为一个加强版的数组 
+
+数组可以通过索引在01的时间复杂度内查到对应元素 索引是一个非负数 
+
+哈希表是类似的 可以通过key在01的复杂度内查找到这个key对应的value
+key的类型可以是数字 字符串等多种类型 
+
+底层实现就是一个数组  不妨称之为table 它先把这个key通过一个哈希函数 转换为数组里面的索引 然后通过增删查改操作和数组基本相同 
+
+哈希表伪代码逻辑 
+
+// 哈希表伪码逻辑
+class MyHashMap {
+
+    private Object[] table;
+
+    // 增/改，复杂度 O(1)
+    public void put(K key, V value) {
+        int index = hash(key);
+        table[index] = value;
+    }
+
+    // 查，复杂度 O(1)
+    public V get(K key) {
+        int index = hash(key);
+        return table[index];
+    }
+
+    // 删，复杂度 O(1)
+    public void remove(K key) {
+        int index = hash(key);
+        table[index] = null;
+    }
+
+    // 哈希函数，把 key 转化成 table 中的合法索引
+    // 时间复杂度必须是 O(1)，才能保证上述方法的复杂度都是 O(1)
+    private int hash(K key) {
+        // ...
+    }
+}
+
+几个关键的概念和原理 
+
+key是唯一的 value可以是重复的 
+
+hash函数 作用是把任意长度的输入key转换称固定长度的输出索引 
+
+复杂度必须是01
+这个函数还要保证一点 输入相同的key 输出也必须相同 这样才能保持hash表的正确性 
+
+
+如何把key转换成整数 
+这个问题可以有很多种答案，不同的哈希函数设计会有不同的方法，我这里就结合 Java 语言说一个简单的办法。其他编程语言也是类似的，可以参考这个思路，查询相关的标准库文档。
+
+任意 Java 对象都会有一个 int hashCode() 方法，在实现自定义的类时，如果不重写这个方法，那么它的默认返回值可以认为是该对象的内存地址。一个对象的内存地址显然是全局唯一的一个整数。
+
+所以我们只要调用 key 的 hashCode() 方法就相当于把 key 转化成了一个整数，且这个整数是全局唯一的。
+
+当然，这个方法也有一些问题，下面会讲解，但现在至少找到了一种把任意对象转化为整数的方法。
+
+如何保证索引合法性 
+hashcode方法返回的是int类型 这个int的值可能是负数  但是数组的索引是非负整数 
+
+
+那么你肯定想这样写代码，把这个值转化成非负数：
+
+
+int h = key.hashCode();
+if (h < 0) h = -h;
+但这样有问题，int 类型可以表示的最小值是 -2^31，而最大值是 2^31 - 1。所以如果 h = -2^31，那么 -h = 2^31 就会超出 int 类型的最大值，这叫做整型溢出，编译器会报错，甚至产生不可预知的结果。
+
+为什么 int 的最小值是 -2^31，而最大值是 2^31 - 1？这涉及计算机补码编码的原理，简单说，int 就是 32 个二进制位，其中最高位（最左边那位）是符号位，符号位是 0 时表示正数，是 1 时表示负数。
+
+现在的问题是，我想保证 h 非负，但又不能用负号直接取反。那么一个简单直接的办法是利用这种补码编码的原理，直接把最高位的符号位变成 0，就可以保证 h 是非负数了：
+
+
+int h = key.hashCode();
+// 位运算，把最高位的符号位去掉
+// 另外，位运算的运行速度也会比一般的算术运算快
+// 所以你看标准库的源码，能用位运算的地方它都会优先使用位运算
+h = h & 0x7fffffff;
+// 这个 0x7fffffff 的二进制表示是 0111 1111 ... 1111
+// 即除了最高位（符号位）是 0，其他位都是 1
+// 把 0x7fffffff 和其他 int 进行 & 运算之后，最高位（符号位）就会被清零，即保证了 h 是非负数
+
+
+关于补码编码的原理我这里就不详细展开了，有兴趣的话你可以自己搜索学习一下。
+
+好的，上面解决了 hashCode 可能是负数的问题，但还有一个问题，就是这个 hashCode 一般都很大，我们需要把它映射成 table 数组的合法索引。
+
+
+这个问题对你来说应该不难吧，我们之前在 
+环形数组原理及实现 里面用 % 求模运算来保证索引永远落在数组的合法范围内。所以这里也可以用 % 运算来保证索引的合法性，完整的 hash 函数实现如下：
+
+
+int hash(K key) {
+    int h = key.hashCode();
+    // 保证非负数
+    h = h & 0x7fffffff;
+    // 映射到 table 数组的合法索引
+    return h % table.length;
+}
+当然，直接使用 % 也有问题，因为 % 这个求余数的运算比较消耗性能，一般在追求运行效率的标准库源码中会尽量避免使用 % 运算，而是使用位运算提升性能。
+
+不过本章主要目的是带你理解实现一个简单的哈希表，就忽略这些细节优化了。有兴趣的话你可以去看一下 Java HashMap 的源码，看看它是如何实现这个 hash 函数的。
+
+
+hash冲突 
+
+上面给出了 hash 函数的实现，那么你肯定也会想到，如果两个不同的 key 通过哈希函数得到了相同的索引，怎么办呢？这种情况就叫做「哈希冲突」。
+
+哈希冲突是否可以避免？
+
+哈希冲突不可能避免，只能在算法层面妥善处理出现哈希冲突的情况。
+
+哈希冲突是一定会出现的，因为这个 hash 函数相当于是把一个无穷大的空间映射到了一个有限的索引空间，所以必然会有不同的 key 映射到同一个索引上。
+
+就好比三维物体映射到二维影子一样，这种有损压缩必然会出现信息丢失，有损信息本就无法和原信息一一对应。
+
+解决
+
+出现哈希冲突的情况怎么解决？两种常见的解决方法，一种是拉链法，另一种是线性探查法（也经常被叫做开放寻址法）。
+
+名字听起来高大上，说白了就是纵向延伸和横向延伸两种思路嘛：
+
+
+拉链法相当于是哈希表的底层数组并不直接存储 value 类型，而是存储一个链表，当有多个不同的 key 映射到了同一个索引上，这些 key -> value 对儿就存储在这个链表中，这样就能解决哈希冲突的问题。
+而线性探查法的思路是，一个 key 发现算出来的 index 值已经被别的 key 占了，那么它就去 index + 1 的位置看看，如果还是被占了，就继续往后找，直到找到一个空的位置为止。
+
+扩容和负载因子 
+
+相信大家都听说过「负载因子」这个专业术语，现在你明白了哈希冲突的问题，就能理解负载因子的意义了。
+
+拉链法和线性探查法虽然能解决哈希冲突的问题，但是它们会导致性能下降。
+
+比如拉链法，你算出来 index = hash(key) 这个索引了，结果过去查出来的是个链表，你还得遍历一下这个链表，才能在里面找到你要的 value。这个过程的时间复杂度是 
+O
+(
+K
+)
+O(K)，K 是这个链表的长度。
+线性探查法也是类似的，你算出来 index = hash(key) 这个索引了，你去这个索引位置查看，发现存储的不是要找的 key，但由于线性探查法解决哈希冲突的方式，你并不能确定这个 key 真的不存在，你必须顺着这个索引往后找，直到找到一个空的位置或者找到这个 key 为止，这个过程的时间复杂度也是 
+O
+(
+K
+)
+O(K)，K 为连续探查的次数。
+
+所以说，如果频繁出现哈希冲突，那么 K 的值就会增大，这个哈希表的性能就会显著下降。这是我们需要避免的。
+那么为什么会频繁出现哈希冲突呢？两个原因呗：
+
+1、哈希函数设计的不好，导致 key 的哈希值分布不均匀，很多 key 映射到了同一个索引上。
+
+2、哈希表里面已经装了太多的 key-value 对了，这种情况下即使哈希函数再完美，也没办法避免哈希冲突。
+
+对于第一个问题没什么好说的，开发编程语言标准库的大佬们已经帮你设计好了哈希函数，你只要调用就行了。
+
+对于第二个问题是我们可以控制的，即避免哈希表装太满，这就引出了「负载因子」的概念。
+
+
+
+负载因子是一个哈希表装满的程度的度量。一般来说，负载因子越大，说明哈希表里面存储的 key-value 对越多，哈希冲突的概率就越大，哈希表的操作性能就越差。
+
+负载因子的计算公式也很简单，就是 size / table.length。其中 size 是哈希表里面的 key-value 对的数量，table.length 是哈希表底层数组的容量。
+
+你不难发现，用拉链法实现的哈希表，负载因子可以无限大，因为链表可以无限延伸；用线性探查法实现的哈希表，负载因子不会超过 1。
+
+像 Java 的 HashMap，允许我们创建哈希表时自定义负载因子，不设置的话默认是 0.75，这个值是经验值，一般保持默认就行了。
+
+当哈希表内元素达到负载因子时，哈希表会扩容。和之前讲解 
+动态数组的实现 是类似的，就是把哈希表底层 table 数组的容量扩大，把数据搬移到新的大数组中。size 不变，table.length 增加，负载因子就减小了。
+
+为什么不能依赖哈希表的遍历顺序 
+
+你大概也听过一个编程常识，即哈希表中键的遍历顺序是无序的，不能依赖哈希表的遍历顺序来编写程序。这是为什么呢？
+
+哈希表的遍历本质上就是遍历那个底层 table 数组：
+
+// 遍历所有 key 的伪码逻辑
+
+// 哈希表底层的 table 数组
+KVNode[] table = new KVNode[1000];
+
+// 获取哈希表中的所有键
+// 我们不能依赖这个 keys 列表的顺序
+List<KeyType> keys = new ArrayList<>();
+
+for (int i = 0; i < table.length; i++) {
+    KVNode node = table[i];
+    if (node != null) {
+        keys.add(node.key);
+    }
+}
+
+
+你如果理解了前面讲的内容，应该已经能够理解这个问题了。
+
+首先，由于 hash 函数要把你的 key 进行映射，所以 key 在底层 table 数组中的分布是随机的，不像数组/链表结构那样有个明确的元素顺序。
+
+其次，刚才讲了哈希表达到负载因子时会怎样？会扩容对吧，也就是 table.length 会变化，且会搬移元素。
+
+那么这个搬移数据的过程，是不是要用 hash 函数重新计算 key 的哈希值，然后放到新的 table 数组中？
+
+而这个 hash 函数，它计算出的值依赖 table.length。也就是说，哈希表自动扩容后，同一个 key 的哈希值可能变化，即这个 key-value 对儿存储在 table 的索引也变了，所以遍历结果的顺序就和之前不一样了。
+
+你观察到的现象就是，这次遍历的第一个键是 key1，但是增删几个元素再遍历，可能发现 key1 跑到最后去了。
+
+为什么不建议 在for循环中增删hash表的key
+注意我这里说的是不建议，并不是一定不可以。因为不同的编程语言标准库对哈希表的实现不同，有些语言针对这种情况做了优化，所以到底行不行，要查阅文档。
+
+我们这里仅从哈希表的原理上分析，在 for 循环中增/删哈希表的 key，是很容易出现问题的，原因和上面相同，还是扩缩容导致的哈希值变化。
+
+遍历哈希表的 key，本质就是遍历哈希表底层的 table 数组，如果一边遍历一边增删元素，如果遍历到一半，插入/删除操作触发了扩缩容，整个 table 数组都变了，那么请问，接下来应该是什么行为？还有，在遍历过程中新插入/删除的元素，是否应该被遍历到？
+
+扩缩容导致 key 顺序变化是哈希表的特有行为，但即便排除这个因素，任何其他数据结构，也都不建议在遍历的过程中同时进行增删，否则很容易导致非预期的行为。
+
+如果你非要这样做，请确保查阅了相关文档，明确这个操作的行为是什么，做到心里有数。
+
+key 必须是不可变的
+
+
+只有那些不可变类型，才能作为哈希表的 key，这一点很重要。
+
+所谓不可变类型，就是说这个对象一旦创建，它的值就不能再改变了。比如 Java 中的 String, Integer 等类型，一旦创建了这些对象，你就只能读取它的值，而不能再修改它的值了。
+
+作为对比，Java 中的 ArrayList、LinkedList 这些对象，它们创建出来之后，可以往里面随意增删元素，所以它们是可变类型。
+
+因此，你可以把 String 对象作为哈希表的 key，但不能把 ArrayList 对象作为哈希表的 key：
+
+第一个就是效率问题，每次计算 hashCode 都要遍历整个数组，复杂度是 
+O
+(
+N
+)
+O(N)，这样就会导致哈希表的增删查改操作的复杂度退化成 
+O
+(
+N
+)
+O(N)。
+
+更严重的问题是，ArrayList 的 hashCode 是根据它里面的元素计算出来的，如果你往这个 ArrayList 里面增删元素，或者其中某个元素的 hashCode 值发生改变，那么这个 ArrayList 的 hashCode 返回值也会发生改变。
+
+比方说，你现在用一个 ArrayList 类型的 arr 变量作为哈希表的 key 在哈希表中保存了对应的 value。但如果 arr 中的某个元素在程序的其他位置被修改了，那么 arr 的 hashCode 就会变化。此时你再用这个 arr 变量去哈希表中查询，发现找不到任何值了。
+
+也就是说，你存入哈希表的 key-value 意外丢失了，这是非常非常严重的 bug，还会带来潜在的内存泄漏问题。
+
+String 类型的 hashCode 方法也需要遍历所有字符，但是由于它的不可变性，这个值只要算出来一次，就可以缓存下来，不用每次都重新计算，所以 
+平均时间复杂度 依然是 
+O
+(
+1
+)
+O(1)。
+
+
+拉链法实现哈希表 
+
+
+哈希表核心原理 已经介绍过哈希函数和 key 的类型的关系，其中 hash 函数的作用是在 
+O
+(
+1
+)
+O(1) 的时间把 key 转化成数组的索引，而 key 可以是任意不可变的类型。
+
+但是这里为了方便诸位理解，我先做如下简化：
+
+1、我们实现的哈希表只支持 key 类型为 int，value 类型为 int 的情况，如果 key 不存在，就返回 -1。
+
+2、我们实现的 hash 函数就是简单地取模，即 hash(key) = key % table.length。这样也方便模拟出哈希冲突的情况，比如当 table.length = 10 时，hash(1) 和 hash(11) 的值都是 1。
+
+3、底层的 table 数组的大小在创建哈希表时就固定，不考虑负载因子和动态扩缩容的问题。
+
+这里直接给出简化版的代码实现，你可以先看看，后面将通过可视化面板展示增删查改的过程：
+
+import java.util.LinkedList;
+
+// 用拉链法解决哈希冲突的简化实现
+public class ExampleChainingHashMap {
+
+    // 链表节点，存储 key-value 对儿
+    // 注意这里必须存储同时存储 key 和 value
+    // 因为要通过 key 找到对应的 value
+    static class KVNode {
+        int key;
+        int value;
+
+        // 为了简化，我这里直接用标准库的 LinkedList 链表
+        // 所以这里就不添加 next 指针了
+        // 你当然可以给 KVNode 添加 next 指针，自己实现链表操作
+        public KVNode(int key, int value) {
+            this.key = key;
+            this.value = value;
+        }
+    }
+
+
+    // 底层 table 数组中的每个元素是一个链表
+    private LinkedList<KVNode>[] table;
+
+    public ExampleChainingHashMap(int capacity) {
+        table = new LinkedList[capacity];
+    }
+
+    private int hash(int key) {
+        return key % table.length;
+    }
+
+    // 查
+    public int get(int key) {
+        int index = hash(key);
+
+        if (table[index] == null) {
+            // 链表为空，说明 key 不存在
+            return -1;
+        }
+
+        LinkedList<KVNode> list = table[index];
+        // 遍历链表，尝试查找目标 key，返回对应的 value
+        for (KVNode node : list) {
+            if (node.key == key) {
+                return node.value;
+            }
+        }
+
+        // 链表中没有目标 key
+        return -1;
+    }
+
+    // 增/改
+    public void put(int key, int value) {
+        int index = hash(key);
+
+        if (table[index] == null) {
+            // 链表为空，新建一个链表，插入 key-value
+            table[index] = new LinkedList<>();
+            table[index].add(new KVNode(key, value));
+            return;
+        }
+
+        // 链表不为空，要遍历一遍看看 key 是否已经存在
+        // 如果存在，更新 value
+        // 如果不存在，插入新节点
+        LinkedList<KVNode> list = table[index];
+        for (KVNode node : list) {
+            if (node.key == key) {
+                // key 已经存在，更新 value
+                node.value = value;
+                return;
+            }
+        }
+
+        // 链表中没有目标 key，添加新节点
+        // 这里使用 addFirst 添加到链表头部或者 addLast 添加到链表尾部都可以
+        // 因为 Java LinkedList 的底层实现是双链表，头尾操作都是 O(1) 的
+        // https://labuladong.online/algo/data-structure-basic/linkedlist-implement/
+        list.addLast(new KVNode(key, value));
+    }
+
+    // 删
+    public void remove(int key) {
+        LinkedList<KVNode> list = table[hash(key)];
+        if (list == null) {
+            return;
+        }
+
+        // 如果 key 存在，则删除
+        // 这个 removeIf 方法是 Java LinkedList 的方法，可以删除满足条件的元素，时间复杂度 O(N)
+        list.removeIf(node -> node.key == key);
+    }
+}
+
+
+import java.util.LinkedList;
+import java.util.List;
+
+public class MyChainingHashMap<K, V> {
+
+    // 拉链法使用的单链表节点，存储 key-value 对
+    private static class KVNode<K, V> {
+        K key;
+        V value;
+        // 因为我们使用了内置的 LinkedList 类，所以不用 next 指针
+        // 不用我们自己实现链表的逻辑
+
+        KVNode(K key, V val) {
+            this.key = key;
+            this.value = val;
+        }
+    }
+
+    // 哈希表的底层数组，每个数组元素是一个链表，链表中每个节点是 KVNode 存储键值对
+    private LinkedList<KVNode<K, V>>[] table;
+
+    // 哈希表中存入的键值对个数
+    private int size;
+    // 底层数组的初始容量
+    private static final int INIT_CAP = 4;
+
+    public MyChainingHashMap() {
+        this(INIT_CAP);
+    }
+
+    public MyChainingHashMap(int initCapacity) {
+        size = 0;
+        // 保证底层数组的容量至少为 1，因为 hash 函数中有求余运算，避免出现除以 0 的情况
+        initCapacity = Math.max(initCapacity, 1);
+        // 初始化哈希表
+        table = (LinkedList<KVNode<K, V>>[]) new LinkedList[initCapacity];
+        for (int i = 0; i < table.length; i++) {
+            table[i] = new LinkedList<>();
+        }
+    }
+
+    // **** 增/改 ****
+
+    // 添加 key -> val 键值对
+    // 如果键 key 已存在，则将值修改为 val
+    public void put(K key, V val) {
+        if (key == null) {
+            throw new IllegalArgumentException("key is null");
+        }
+        LinkedList<KVNode<K, V>> list = table[hash(key)];
+        // 如果 key 之前存在，则修改对应的 val
+        for (KVNode<K, V> node : list) {
+            if (node.key.equals(key)) {
+                node.value = val;
+                return;
+            }
+        }
+        // 如果 key 之前不存在，则插入，size 增加
+        list.add(new KVNode<>(key, val));
+        size++;
+
+        // 如果元素数量超过了负载因子，进行扩容
+        if (size >= table.length * 0.75) {
+            resize(table.length * 2);
+        }
+    }
+
+    // **** 删 ****
+
+    // 删除 key 和对应的 val
+    public void remove(K key) {
+        if (key == null) {
+            throw new IllegalArgumentException("key is null");
+        }
+        LinkedList<KVNode<K, V>> list = table[hash(key)];
+        // 如果 key 存在，则删除，size 减少
+        for (KVNode<K, V> node : list) {
+            if (node.key.equals(key)) {
+                list.remove(node);
+                size--;
+
+                // 缩容，当负载因子小于 0.125 时，缩容
+                if (size <= table.length / 8) {
+                    resize(table.length / 4);
+                }
+                return;
+            }
+        }
+    }
+
+    // **** 查 ****
+
+    // 返回 key 对应的 val，如果 key 不存在，则返回 null
+    public V get(K key) {
+        if (key == null) {
+            throw new IllegalArgumentException("key is null");
+        }
+        LinkedList<KVNode<K, V>> list = table[hash(key)];
+        for (KVNode<K, V> node : list) {
+            if (node.key.equals(key)) {
+                return node.value;
+            }
+        }
+        return null;
+    }
+
+    // 返回所有 key
+    public List<K> keys() {
+        List<K> keys = new LinkedList<>();
+        for (LinkedList<KVNode<K, V>> list : table) {
+            for (KVNode<K, V> node : list) {
+                keys.add(node.key);
+            }
+        }
+        return keys;
+    }
+
+    // **** 其他工具函数 ****
+
+    public int size() {
+        return size;
+    }
+
+    // 哈希函数，将键映射到 table 的索引
+    private int hash(K key) {
+        return (key.hashCode() & 0x7fffffff) % table.length;
+    }
+
+    private void resize(int newCap) {
+        // 构造一个新的 HashMap
+        // 避免 newCap 为 0，造成求模运算产生除以 0 的异常
+        newCap = Math.max(newCap, 1);
+        MyChainingHashMap<K, V> newMap = new MyChainingHashMap<>(newCap);
+        // 穷举当前 HashMap 中的所有键值对
+        for (LinkedList<KVNode<K, V>> list : table) {
+            for (KVNode<K, V> node : list) {
+                // 将键值对转移到新的 HashMap 中
+                newMap.put(node.key, node.value);
+            }
+        }
+        // 将当前 HashMap 的底层 table 换掉
+        this.table = newMap.table;
+    }
+
+    public static void main(String[] args) {
+        MyChainingHashMap<Integer, Integer> map = new MyChainingHashMap<>();
+        map.put(1, 1);
+        map.put(2, 2);
+        map.put(3, 3);
+        System.out.println(map.get(1)); // 1
+        System.out.println(map.get(2)); // 2
+
+        map.put(1, 100);
+        System.out.println(map.get(1)); // 100
+
+        map.remove(2);
+        System.out.println(map.get(2)); // null
+        // [1, 3]（顺序可能不同）
+        System.out.println(map.keys());
+
+        map.remove(1);
+        map.remove(2);
+        map.remove(3);
+        System.out.println(map.get(1)); // null
+    }
+}
+
+
+
+
+线性探查法 
+
+难点一
+需要环形数组技巧 
+难点二 删除操作比较复杂 
+两种方法 第一是 数据搬移避免空洞 
+第二是 占位符标记删除 
+
+// 用线性探查法解决哈希冲突的简化实现（rehash 版）
+public class ExampleLinearProbingHashMap1 {
+
+    private static class Node {
+        int key;
+        int val;
+
+        Node(int key, int val) {
+            this.key = key;
+            this.val = val;
+        }
+    }
+
+    // 哈希表的底层数组，每个索引存储一个键值对
+    private final Node[] table;
+
+    public ExampleLinearProbingHashMap1(int cap) {
+        table = new Node[cap];
+    }
+
+    // 增/改
+    public void put(int key, int value) {
+        int index = findKeyIndex(key);
+        table[index] = new Node(key, value);
+    }
+
+    // 查，找不到就返回 -1
+    public int get(int key) {
+        int index = findKeyIndex(key);
+        return table[index] == null ? -1 : table[index].val;
+    }
+
+    // 删
+    public void remove(int key) {
+        int index = findKeyIndex(key);
+        if (table[index] == null) {
+            return;
+        }
+        table[index] = null;
+        // 保持元素连续性，搬移数据（这个过程称为 rehash）
+        index = (index + 1) % table.length;
+        while (table[index] != null) {
+            Node entry = table[index];
+            table[index] = null;
+            // 这个操作是关键，利用 put 方法，将键值对重新插入
+            // 这样就能把它们移动到正确的 table 索引位置
+            put(entry.key, entry.val);
+            index = (index + 1) % table.length;
+        }
+    }
+
+    // 线性探测法查找 key 在 table 中的索引
+    // 如果找不到，返回的就是下一个为 null 的索引，可用于插入
+    private int findKeyIndex(int key) {
+        int index = hash(key);
+
+        while (table[index] != null) {
+            if (table[index].key == key) {
+                return index;
+            }
+            // 注意环形数组特性
+            index = (index + 1) % table.length;
+        }
+
+        return index;
+    }
+
+    private int hash(int key) {
+        return key % table.length;
+    }
+
+    public static void main(String[] args) {
+        ExampleLinearProbingHashMap1 map = new ExampleLinearProbingHashMap1(10);
+        map.put(1, 1);
+        map.put(2, 2);
+        map.put(10, 10);
+        map.put(20, 20);
+        map.put(30, 30);
+        map.put(3, 3);
+        System.out.println(map.get(1)); // 1
+        System.out.println(map.get(2)); // 2
+        System.out.println(map.get(20)); // 20
+
+        map.put(1, 100);
+        System.out.println(map.get(1)); // 100
+
+        map.remove(20);
+        System.out.println(map.get(20)); // -1
+        System.out.println(map.get(30)); // 30
+    }
+}
+
+这段代码实现了一个使用 **线性探测法**（Linear Probing）解决哈希冲突的哈希表，支持基本的增、查、删操作。以下是详细讲解：
+
+---
+
+### **1. 数据结构**
+#### `Node` 类
+每个 `Node` 实例存储一个键值对：
+- `key`：哈希表中存储的键。
+- `val`：对应的值。
+
+```java
+private static class Node {
+    int key;
+    int val;
+
+    Node(int key, int val) {
+        this.key = key;
+        this.val = val;
+    }
+}
+```
+
+#### 哈希表的底层存储
+哈希表使用一个固定大小的数组 `table` 作为底层存储结构，每个索引存储一个 `Node`。
+
+```java
+private final Node[] table;
+```
+
+---
+
+### **2. 核心方法**
+#### **`put(int key, int value)`**
+负责将键值对插入哈希表。如果键已经存在，则更新值；如果不存在，找到空位插入。
+- 首先调用 `findKeyIndex(key)` 方法，找到 `key` 的索引。
+- 在找到的位置，创建一个新的 `Node` 存储键值对。
+
+关键代码：
+```java
+int index = findKeyIndex(key);
+table[index] = new Node(key, value);
+```
+
+---
+
+#### **`get(int key)`**
+查找键对应的值。如果找到，返回值；如果找不到，返回 `-1`。
+- 通过 `findKeyIndex(key)` 找到键的索引。
+- 如果索引处是 `null`，表示键不存在。
+
+关键代码：
+```java
+int index = findKeyIndex(key);
+return table[index] == null ? -1 : table[index].val;
+```
+
+---
+
+#### **`remove(int key)`**
+删除指定键的键值对，并确保哈希表数据连续性。
+1. 找到要删除的键所在的索引，设置为 `null`。
+2. 为了保持数据连续性，需要对后续元素进行重新插入（**rehash**），避免断链导致数据丢失。
+
+关键代码：
+```java
+table[index] = null; // 删除节点
+index = (index + 1) % table.length; // 继续检查下一个位置
+while (table[index] != null) {
+    Node entry = table[index];
+    table[index] = null; // 暂时清空当前位置
+    put(entry.key, entry.val); // 重新插入
+    index = (index + 1) % table.length;
+}
+```
+
+---
+
+#### **`findKeyIndex(int key)`**
+查找键 `key` 在数组中的索引：
+- 如果找到键，返回它的索引。
+- 如果键不存在，则返回下一个空位的索引（用于插入新键值对）。
+
+采用 **线性探测法**：
+1. 用 `hash(key)` 计算初始索引。
+2. 如果当前位置已经有值且不是目标键，检查下一个位置。
+3. 如果到达数组末尾，则环回到数组开头（模运算 `%`）。
+
+关键代码：
+```java
+int index = hash(key);
+while (table[index] != null) {
+    if (table[index].key == key) {
+        return index;
+    }
+    index = (index + 1) % table.length; // 环形数组特性
+}
+return index;
+```
+
+---
+
+#### **`hash(int key)`**
+简单哈希函数：
+```java
+private int hash(int key) {
+    return key % table.length;
+}
+```
+计算键在数组中的初始位置。
+
+---
+
+### **3. 主函数运行示例**
+#### 初始化
+```java
+ExampleLinearProbingHashMap1 map = new ExampleLinearProbingHashMap1(10);
+```
+创建容量为 `10` 的哈希表。
+
+#### 插入数据
+```java
+map.put(1, 1); // 插入 (1, 1)
+map.put(2, 2); // 插入 (2, 2)
+map.put(10, 10); // 哈希冲突，插入到下一个空位
+map.put(20, 20); // 同样处理冲突
+map.put(30, 30); // 冲突，继续线性探测
+map.put(3, 3); // 插入新键值对
+```
+
+#### 查找数据
+```java
+System.out.println(map.get(1)); // 输出 1
+System.out.println(map.get(2)); // 输出 2
+System.out.println(map.get(20)); // 输出 20
+```
+
+#### 更新数据
+```java
+map.put(1, 100); // 更新键 1 的值
+System.out.println(map.get(1)); // 输出 100
+```
+
+#### 删除数据
+```java
+map.remove(20); // 删除键 20
+System.out.println(map.get(20)); // 输出 -1（找不到）
+System.out.println(map.get(30)); // 输出 30（30 重新调整了位置）
+```
+
+---
+
+### **4. 特点与注意事项**
+1. **优点**：
+   - 简单实现线性探测法，解决哈希冲突。
+   - `rehash` 保证了数据连续性，避免断链导致查找失败。
+
+2. **缺点**：
+   - **固定容量**：无法动态扩展数组，可能导致插入失败。
+   - **线性探测效率下降**：当数组接近满时，查找和插入操作变慢（可能退化为 O(n)）。
+   - 没有处理负载因子：高负载会严重影响性能。
+
+3. **改进方向**：
+   - 动态扩容：支持扩展数组容量，降低负载。
+   - 使用更复杂的哈希函数：减少冲突概率。
+
+---
+
+完整版代码  
+
+主要是增加以下几个功能
+
+1.使用了泛型 可以储存任意类型的key 和 value
+2.底层的table会根据负载因子扩缩容 
+3.使用了哈希表基础中提到的hash函数 利用key的hashcode（）方法 和 table.length 来计算hash值 
+4.实现了keys方法 可以返回哈希表中的key
+
+import java.util.LinkedList;
+import java.util.List;
+
+// rehash 方式实现的线性探查哈希表
+public class MyLinearProbingHashMap1<K, V> {
+
+    private static class KVNode<K, V> {
+        K key;
+        V val;
+
+        KVNode(K key, V val) {
+            this.key = key;
+            this.val = val;
+        }
+    }
+
+    // 真正存储键值对的数组
+    private KVNode<K, V>[] table;
+    // HashMap 中的键值对个数
+    private int size;
+    // 默认的初始化容量
+    private static final int INIT_CAP = 4;
+
+    public MyLinearProbingHashMap1() {
+        this(INIT_CAP);
+    }
+
+    public MyLinearProbingHashMap1(int initCapacity) {
+        size = 0;
+        table = (KVNode<K, V>[]) new KVNode[initCapacity];
+    }
+
+    // **** 增/改 ****
+    public void put(K key, V val) {
+        if (key == null) {
+            throw new IllegalArgumentException("key is null");
+        }
+        // 我们把负载因子默认设为 0.75，超过则扩容
+        if (size >= table.length * 0.75) {
+            resize(table.length * 2);
+        }
+
+        int index = getKeyIndex(key);
+        // key 已存在，修改对应的 val
+        if (table[index] != null) {
+            table[index].val = val;
+            return;
+        }
+
+        // key 不存在，在空位插入
+        table[index] = new KVNode<>(key, val);
+        size++;
+    }
+
+    // **** 删 ****
+    // 删除 key 和对应的 val
+    public void remove(K key) {
+        if (key == null) {
+            throw new IllegalArgumentException("key is null");
+        }
+
+        // 缩容，当负载因子小于 0.125 时，缩容
+        if (size <= table.length / 8) {
+            resize(table.length / 4);
+        }
+
+        int index = getKeyIndex(key);
+
+        if (table[index] == null) {
+            // key 不存在，不需要 remove
+            return;
+        }
+
+        // 开始 remove
+        table[index] = null;
+        size--;
+        // 保持元素连续性，进行 rehash
+        index = (index + 1) % table.length;
+        for (; table[index] != null; index = (index + 1) % table.length) {
+            KVNode<K, V> entry = table[index];
+            table[index] = null;
+            // 这里减一，因为 put 里面又会加一
+            size--;
+            put(entry.key, entry.val);
+
+        }
+    }
+
+    // **** 查 ****
+    // 返回 key 对应的 val，如果 key 不存在，则返回 null
+    public V get(K key) {
+        if (key == null) {
+            throw new IllegalArgumentException("key is null");
+        }
+        int index = getKeyIndex(key);
+        if (table[index] == null) {
+            return null;
+        }
+        return table[index].val;
+    }
+
+    // 返回所有 key（顺序不固定）
+    public List<K> keys() {
+        LinkedList<K> keys = new LinkedList<>();
+        for (KVNode<K, V> entry : table) {
+            if (entry != null) {
+                keys.addLast(entry.key);
+            }
+        }
+        return keys;
+    }
+
+    // **** 其他工具函数 ****
+    public int size() {
+        return size;
+    }
+
+    // 哈希函数，将键映射到 table 的索引
+    // [0, table.length - 1]
+    private int hash(K key) {
+        // int: 0000 0000 0000 ... 0000
+        //    : 0111 1111 1111 ... 1111
+        return (key.hashCode() & 0x7fffffff) % table.length;
+    }
+
+    // 对 key 进行线性探查，返回一个索引
+    // 如果 key 不存在，返回的就是下一个为 null 的索引，可用于插入
+    private int getKeyIndex(K key) {
+        int index;
+        for (index = hash(key); table[index] != null; index = (index + 1) % table.length) {
+            if (table[index].key.equals(key))
+                return index;
+        }
+        return index;
+    }
+
+    private void resize(int newCap) {
+        MyLinearProbingHashMap1<K, V> newMap = new MyLinearProbingHashMap1<>(newCap);
+        for (KVNode<K, V> entry : table) {
+            if (entry != null) {
+                newMap.put(entry.key, entry.val);
+            }
+        }
+        this.table = newMap.table;
+    }
+
+    public static void main(String[] args) {
+        MyLinearProbingHashMap1<Integer, Integer> map = new MyLinearProbingHashMap1<>();
+        map.put(1, 1);
+        map.put(2, 2);
+        map.put(10, 10);
+        map.put(20, 20);
+        map.put(30, 30);
+        map.put(3, 3);
+        System.out.println(map.get(1)); // 1
+        System.out.println(map.get(2)); // 2
+        System.out.println(map.get(20)); // 20
+
+        map.put(1, 100);
+        System.out.println(map.get(1)); // 100
+
+        map.remove(20);
+        System.out.println(map.get(20)); // null
+        System.out.println(map.get(30)); // 30
+    }
+}
+这段代码是一个通用类型（泛型）的哈希表实现，使用**线性探测法**（Linear Probing）解决哈希冲突。它包含增（`put`）、删（`remove`）、查（`get`）操作，并支持动态扩容和缩容。下面详细解释各部分的功能和实现细节：
+
+---
+
+### **1. 数据结构设计**
+#### **`KVNode` 类**
+用来存储哈希表中的键值对：
+- `key`：键。
+- `val`：值。
+
+```java
+private static class KVNode<K, V> {
+    K key;
+    V val;
+
+    KVNode(K key, V val) {
+        this.key = key;
+        this.val = val;
+    }
+}
+```
+
+---
+
+#### **底层数组 `table`**
+- `table` 是存储键值对的数组，类型为 `KVNode<K, V>[]`。
+- 数组容量决定哈希表的存储上限，当负载因子超过一定比例时会触发扩容。
+
+---
+
+### **2. 核心方法**
+
+#### **`put(K key, V val)`** - 插入或更新键值对
+- 首先检查是否需要扩容（负载因子超过 0.75 时，数组容量翻倍）。
+- 使用 `getKeyIndex` 方法计算插入索引：
+  - 如果键已存在，更新对应的值。
+  - 如果键不存在，将键值对插入到空位，并增加 `size`。
+  
+代码片段：
+```java
+if (size >= table.length * 0.75) {
+    resize(table.length * 2); // 扩容
+}
+int index = getKeyIndex(key);
+if (table[index] != null) {
+    table[index].val = val; // 更新值
+    return;
+}
+table[index] = new KVNode<>(key, val); // 插入新节点
+size++;
+```
+
+---
+
+#### **`remove(K key)`** - 删除键值对
+1. 找到 `key` 的索引，将对应的节点置为 `null`，并减少 `size`。
+2. 为保持数据的连续性，对其后续元素重新插入（**rehash**）。
+3. 检查是否需要缩容（负载因子小于 0.125 时，容量减半）。
+
+代码片段：
+```java
+table[index] = null; // 删除节点
+size--;
+index = (index + 1) % table.length;
+for (; table[index] != null; index = (index + 1) % table.length) {
+    KVNode<K, V> entry = table[index];
+    table[index] = null; // 暂时清空
+    size--;
+    put(entry.key, entry.val); // 重新插入
+}
+```
+
+---
+
+#### **`get(K key)`** - 查找值
+- 通过 `getKeyIndex` 找到 `key` 的索引。
+- 如果索引处为 `null`，返回 `null`；否则返回对应的值。
+
+代码片段：
+```java
+int index = getKeyIndex(key);
+if (table[index] == null) {
+    return null;
+}
+return table[index].val;
+```
+
+---
+
+#### **`keys()`** - 返回所有键
+- 遍历整个数组，将不为 `null` 的键加入列表。
+
+---
+
+### **3. 工具方法**
+
+#### **`hash(K key)`** - 哈希函数
+计算键在数组中的索引，确保结果落在 `[0, table.length - 1]` 范围内：
+```java
+return (key.hashCode() & 0x7fffffff) % table.length;
+```
+- `& 0x7fffffff`：确保 `hashCode` 为非负数。
+- `% table.length`：处理数组环形特性。
+
+---
+
+#### **`getKeyIndex(K key)`** - 找到索引
+使用**线性探测法**查找键的索引：
+1. 计算键的初始哈希索引。
+2. 如果当前索引处不为空，检查键是否匹配。
+3. 如果不匹配，继续检查下一个索引，直到找到匹配的键或空位。
+
+代码片段：
+```java
+for (index = hash(key); table[index] != null; index = (index + 1) % table.length) {
+    if (table[index].key.equals(key)) {
+        return index; // 找到匹配的键
+    }
+}
+return index; // 找到空位
+```
+
+---
+
+#### **`resize(int newCap)`** - 调整数组容量
+扩容或缩容时：
+1. 创建一个新的哈希表实例（容量为 `newCap`）。
+2. 将原数组中的键值对重新插入到新表中（rehash）。
+
+代码片段：
+```java
+MyLinearProbingHashMap1<K, V> newMap = new MyLinearProbingHashMap1<>(newCap);
+for (KVNode<K, V> entry : table) {
+    if (entry != null) {
+        newMap.put(entry.key, entry.val);
+    }
+}
+this.table = newMap.table; // 替换旧表
+```
+
+---
+
+### **4. 动态扩容与缩容**
+- **扩容**：当负载因子 ≥ 0.75 时，数组容量翻倍。
+- **缩容**：当负载因子 ≤ 0.125 且容量大于初始容量时，数组容量减半。
+
+扩容和缩容的设计保证了哈希表在高效存储和性能之间的平衡。
+
+---
+
+### **5. 主函数运行示例**
+
+#### 插入数据
+```java
+map.put(1, 1); // 插入 (1, 1)
+map.put(2, 2); // 插入 (2, 2)
+map.put(10, 10); // 冲突，放置到下一个空位
+map.put(20, 20); // 冲突，继续线性探测
+map.put(30, 30); // 冲突，继续探测
+map.put(3, 3); // 插入新键值对
+```
+
+#### 查找数据
+```java
+System.out.println(map.get(1)); // 输出 1
+System.out.println(map.get(2)); // 输出 2
+System.out.println(map.get(20)); // 输出 20
+```
+
+#### 更新数据
+```java
+map.put(1, 100); // 更新键 1 的值
+System.out.println(map.get(1)); // 输出 100
+```
+
+#### 删除数据
+```java
+map.remove(20); // 删除键 20
+System.out.println(map.get(20)); // 输出 null
+System.out.println(map.get(30)); // 输出 30（重新调整了位置）
+```
+
+---
+
+### **6. 特点与优势**
+1. **动态扩容和缩容**：提高存储和性能的灵活性。
+2. **线性探测法**：简单高效，适合中小规模数据。
+3. **泛型支持**：可存储任意类型的键值对。
+
+---
+
+### **7. 注意事项**
+1. **性能受负载因子影响**：高负载因子会降低查找和插入效率。
+2. **哈希冲突处理**：需要合理设计哈希函数，减少冲突发生。
+
+这段代码是一个简化版的哈希表实现，适合学习和理解哈希表原理和线性探测法。
+
+
+特殊值标记法 
+
+import java.util.LinkedList;
+import java.util.List;
+
+public class MyLinearProbingHashMap2<K, V> {
+
+    private static class KVNode<K, V> {
+        K key;
+        V val;
+
+        KVNode(K key, V val) {
+            this.key = key;
+            this.val = val;
+        }
+    }
+
+    // 被删除的 KVNode 的占位符
+    private final KVNode<K, V> DUMMY = new KVNode<>(null, null);
+
+    // 真正存储键值对的 table 数组
+    private KVNode<K, V>[] table;
+    // HashMap 中的键值对个数
+    private int size;
+    // 默认的初始化容量
+    private static final int INIT_CAP = 4;
+
+    public MyLinearProbingHashMap2() {
+        this(INIT_CAP);
+    }
+
+    public MyLinearProbingHashMap2(int cap) {
+        size = 0;
+        table = (KVNode<K, V>[]) new KVNode[cap];
+    }
+
+    // **** 增/改 ****
+
+    // 添加 key -> val 键值对
+    // 如果键 key 已存在，则将值修改为 val
+    public void put(K key, V val) {
+        if (key == null) {
+            throw new IllegalArgumentException("key is null");
+        }
+
+        // 负载因子默认设为 0.75，超过则扩容
+        if (size >= table.length * 0.75) {
+            resize(table.length * 2);
+        }
+
+        int index = getKeyIndex(key);
+        if (index != -1) {
+            // key 已存在，修改对应的 val
+            table[index].val = val;
+            return;
+        }
+
+        // key 不存在
+        KVNode<K, V> x = new KVNode<>(key, val);
+        // 在 table 中找一个空位或者占位符，插入
+        index = hash(key);
+        while (table[index] != null && table[index] != DUMMY) {
+            index = (index + 1) % table.length;
+        }
+        table[index] = x;
+        size++;
+    }
+
+    // **** 删 ****
+
+    // 删除 key 和对应的 val，并返回 val
+    // 若 key 不存在，则返回 null
+    public void remove(K key) {
+        if (key == null) {
+            throw new IllegalArgumentException("key is null");
+        }
+
+        // 缩容
+        if (size < table.length / 8) {
+            resize(table.length / 2);
+        }
+
+        int index = getKeyIndex(key);
+        if (index == -1) {
+            // key 不存在，不需要 remove
+            return;
+        }
+
+        // 开始 remove
+        // 直接用占位符表示删除
+        table[index] = DUMMY;
+        size--;
+    }
+
+    // **** 查 ****
+
+    // 返回 key 对应的 val
+    // 如果 key 不存在，则返回 null
+    public V get(K key) {
+        if (key == null) {
+            throw new IllegalArgumentException("key is null");
+        }
+
+        int index = getKeyIndex(key);
+        if (index == -1) {
+            return null;
+        }
+
+        return table[index].val;
+    }
+
+    public boolean containsKey(K key) {
+        return getKeyIndex(key) != -1;
+    }
+
+    public List<K> keys() {
+        LinkedList<K> keys = new LinkedList<>();
+        for (KVNode<K, V> entry : table) {
+            if (entry != null && entry != DUMMY) {
+                keys.addLast(entry.key);
+            }
+        }
+        return keys;
+    }
+
+    public int size() {
+        return size;
+    }
+
+    // 对 key 进行线性探查，返回一个索引
+    // 根据 keys[i] 是否为 null 判断是否找到对应的 key
+    private int getKeyIndex(K key) {
+        int step = 0;
+        for (int i = hash(key); table[i] != null; i = (i + 1) % table.length) {
+            step++;
+            // 防止死循环
+            if (step > table.length) {
+                // 这里可以触发一次 resize，把标记为删除的占位符清理掉
+                resize(table.length);
+                return -1;
+            }
+            KVNode<K, V> entry = table[i];
+            // 遇到占位符直接跳过
+            if (entry == DUMMY) {
+                continue;
+            }
+            if (entry.key.equals(key)) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
+    // 哈希函数，将键映射到 table 的索引
+    // [0, table.length - 1]
+    private int hash(K key) {
+        // int: 0000 0000 0000 ... 0000
+        //    : 0111 1111 1111 ... 1111
+        return (key.hashCode() & 0x7fffffff) % table.length;
+    }
+
+    private void resize(int cap) {
+        MyLinearProbingHashMap2<K, V> newMap = new MyLinearProbingHashMap2<>(cap);
+        for (KVNode<K, V> entry : table) {
+            if (entry != null && entry != DUMMY) {
+                newMap.put(entry.key, entry.val);
+            }
+        }
+        this.table = newMap.table;
+    }
+
+    public static void main(String[] args) {
+        MyLinearProbingHashMap2<Integer, Integer> map = new MyLinearProbingHashMap2<>();
+        map.put(1, 1);
+        map.put(2, 2);
+        map.put(10, 10);
+        map.put(20, 20);
+        map.put(30, 30);
+        map.put(3, 3);
+        System.out.println(map.get(1)); // 1
+        System.out.println(map.get(2)); // 2
+        System.out.println(map.get(20)); // 20
+
+        map.put(1, 100);
+        System.out.println(map.get(1)); // 100
+
+        map.remove(20);
+        System.out.println(map.get(20)); // null
+        System.out.println(map.get(30)); // 30
+    }
+}
+
+
+这段代码实现了一个基于**线性探测法**（Linear Probing）的哈希表，和上一段代码类似，但采用了**占位符**（`DUMMY`）来标记删除的节点，而不是直接清空节点后重新调整所有元素的位置。这种实现方式能够提高删除操作的效率，同时避免了频繁的 `rehash`。下面详细分析每个部分的设计和特点：
+
+---
+
+### **1. 数据结构设计**
+
+#### **`KVNode` 类**
+- 每个键值对存储在 `KVNode` 对象中，包含 `key` 和 `val`。
+- `DUMMY` 是特殊的占位符节点，用于标记删除操作。
+
+```java
+private final KVNode<K, V> DUMMY = new KVNode<>(null, null);
+```
+- 特点：当删除某个键值对时，并不会直接置 `null`，而是用 `DUMMY` 占位，便于保持数组的连续性，避免因删除而导致的查找中断。
+
+---
+
+#### **底层数组 `table`**
+- 数组 `table` 存储哈希表的键值对。
+- 数组初始容量为 `INIT_CAP`（默认 4）。
+- 当负载因子超过 0.75 或小于 0.125 时，数组会动态扩容或缩容。
+
+---
+
+### **2. 核心方法**
+
+#### **插入操作：`put(K key, V val)`**
+- 如果键已存在，则更新值。
+- 如果键不存在，找到一个空位（`null` 或 `DUMMY`），插入新节点。
+- 如果负载因子超过 0.75，触发扩容。
+
+**实现逻辑：**
+1. 使用 `getKeyIndex(key)` 判断键是否已存在。
+2. 如果存在，直接更新值。
+3. 如果不存在，使用 `hash(key)` 找到插入位置，跳过 `DUMMY` 节点。
+4. 插入新键值对后，更新 `size`。
+
+```java
+int index = hash(key);
+while (table[index] != null && table[index] != DUMMY) {
+    index = (index + 1) % table.length;
+}
+table[index] = x;
+size++;
+```
+
+---
+
+#### **删除操作：`remove(K key)`**
+- 删除时并不直接置 `null`，而是用 `DUMMY` 标记节点。
+- 这样可以保证键值对的连续性，避免查找过程被中断。
+- 如果负载因子小于 0.125，触发缩容。
+
+**实现逻辑：**
+1. 使用 `getKeyIndex(key)` 找到键的索引。
+2. 如果键存在，将对应节点替换为 `DUMMY`，并更新 `size`。
+3. 如果键不存在，直接返回。
+
+```java
+table[index] = DUMMY;
+size--;
+```
+
+---
+
+#### **查找操作：`get(K key)`**
+- 使用 `getKeyIndex(key)` 查找键的索引。
+- 如果键存在，返回对应的值；如果键不存在，返回 `null`。
+
+**实现逻辑：**
+1. 根据哈希值计算起始索引。
+2. 线性探测数组，跳过 `DUMMY` 节点。
+3. 如果找到键，返回对应的值；如果遇到空位，返回 `null`。
+
+```java
+for (int i = hash(key); table[i] != null; i = (i + 1) % table.length) {
+    if (entry.key.equals(key)) {
+        return i; // 找到匹配的键
+    }
+}
+return -1; // 未找到
+```
+
+---
+
+#### **`getKeyIndex(K key)`**
+- 查找键所在的索引。
+- 使用线性探测，跳过占位符（`DUMMY`），直到找到键或遇到空位。
+- 增加了防死循环机制：
+  - 如果查找过程中循环超过数组长度，可能存在大量 `DUMMY` 节点，触发一次 `resize` 清理。
+
+```java
+if (step > table.length) {
+    resize(table.length); // 清理占位符
+    return -1;
+}
+```
+
+---
+
+#### **扩容与缩容：`resize(int cap)`**
+- 当需要扩容（负载因子 ≥ 0.75）或缩容（负载因子 ≤ 0.125）时，重新分配一个新的数组。
+- 遍历旧表，将非空和非 `DUMMY` 节点重新插入新表中（`rehash`）。
+
+**扩容的触发条件：**
+```java
+if (size >= table.length * 0.75) {
+    resize(table.length * 2);
+}
+```
+
+**缩容的触发条件：**
+```java
+if (size < table.length / 8) {
+    resize(table.length / 2);
+}
+```
+
+---
+
+### **3. 优化点与改进点**
+
+#### **1. 删除操作优化**
+- 引入 `DUMMY` 节点，避免删除后立即触发 `rehash`，提升性能。
+- 缺点：大量 `DUMMY` 节点可能会降低查找效率。
+
+---
+
+#### **2. 防止死循环**
+- 在查找过程中引入计数器（`step`），避免线性探测陷入无限循环。
+- 如果发现死循环，触发一次 `resize` 来清理数组中的占位符。
+
+---
+
+#### **3. 动态扩容和缩容**
+- 确保哈希表性能（时间复杂度）与空间利用率之间的平衡。
+- 容量扩展和收缩过程中，清理占位符，避免内存浪费。
+
+---
+
+### **4. 主函数示例运行分析**
+
+#### 插入数据
+```java
+map.put(1, 1); // 插入 (1, 1)
+map.put(2, 2); // 插入 (2, 2)
+map.put(10, 10); // 冲突，使用线性探测找到空位
+map.put(20, 20); // 冲突，再次探测空位
+map.put(30, 30); // 扩容触发
+map.put(3, 3); // 插入
+```
+
+#### 查找数据
+```java
+System.out.println(map.get(1)); // 输出 1
+System.out.println(map.get(20)); // 输出 20
+System.out.println(map.get(30)); // 输出 30
+```
+
+#### 更新数据
+```java
+map.put(1, 100); // 更新键 1 的值
+System.out.println(map.get(1)); // 输出 100
+```
+
+#### 删除数据
+```java
+map.remove(20); // 标记删除键 20
+System.out.println(map.get(20)); // 输出 null
+```
+
+---
+
+### **5. 优势和局限性**
+
+#### **优势**
+1. **删除操作简单高效**：用 `DUMMY` 占位，避免频繁的重插入操作。
+2. **动态扩容与缩容**：合理分配内存，提升性能。
+3. **防死循环机制**：保障查找的正确性，避免无效循环。
+
+#### **局限性**
+1. 大量 `DUMMY` 节点会影响查找效率。
+2. 空间占用可能略高于传统线性探测法，因为 `DUMMY` 节点需要额外处理。
+
+总结：这段代码在删除操作上做了优化，非常适合需要频繁增删操作的场景。
+
+
+
+
+hash集合 
+
+哈希表的键 其实就是哈希集合 
+
+哈希集合
