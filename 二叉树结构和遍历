@@ -1,0 +1,231 @@
+我认为二叉树是最重要的基本数据结构  
+
+二叉树本身是比较简单的基础数据结构 但是很多复杂的数据结构都是基于二叉树的 比如 红黑树（二叉搜索树 ） 多叉树 二叉堆 图 字典树 并查集 线段树等等 
+
+二叉树不单纯是一种数据结构 更代表着递归的思维方式 一切递归算法 比如回溯算法 bfs 动态规划 在本质上是把具体问题抽象成树结构 
+
+完全二叉树的左右子树至少有一个满二叉树 
+
+二叉搜索树 左小右大 bst
+
+实现方式  
+
+最常见的二叉树就是类似链表那样的链式存储结构，每个二叉树节点有指向左右子节点的指针，这种方式比较简单直观。
+
+力扣/LeetCode 上给你输入的二叉树一般都是用这种方式构建的，二叉树节点类 TreeNode 一般长这样：
+
+
+
+class TreeNode {
+    int val;
+    TreeNode left;
+    TreeNode right;
+    TreeNode(int x) { this.val = x; }
+}
+
+// 你可以这样构建一棵二叉树：
+TreeNode root = new TreeNode(1);
+root.left = new TreeNode(2);
+root.right = new TreeNode(3);
+root.left.left = new TreeNode(4);
+root.right.left = new TreeNode(5);
+root.right.right = new TreeNode(6);
+
+// 构建出来的二叉树是这样的：
+//     1
+//    / \
+//   2   3
+//  /   / \
+// 4   5   6
+
+
+是的，在 
+二叉堆原理及实现 和 
+并查集算法详解 中，我们会根据具体的需求场景选择用数组来存储二叉树。
+
+在 
+可视化面板 可视化递归函数时，其实是根据函数堆栈生成的递归树，这也可以算是一种二叉树的实现方式。
+
+另外，在一般的算法题中，我们可能会把实际问题抽象成二叉树结构，但我们并不需要真的用 TreeNode 创建一棵二叉树出来，而是直接用类似 
+哈希表 的结构来表示二叉树/多叉树。
+
+// 1 -> [2, 3]
+// 2 -> [4]
+// 3 -> [5, 6]
+
+HashMap<Integer, List<Integer>> tree = new HashMap<>();
+tree.put(1, Arrays.asList(2, 3));
+tree.put(2, Collections.singletonList(4));
+tree.put(3, Arrays.asList(5, 6));
+这样有个新的名字 邻接表 
+
+
+
+二叉树的遍历/层序遍历 
+
+// 基本的二叉树节点
+class TreeNode {
+    int val;
+    TreeNode left, right;
+}
+
+// 二叉树的遍历框架
+void traverse(TreeNode root) {
+    if (root == null) {
+        return;
+    }
+    traverse(root.left);
+    traverse(root.right);
+}
+
+void traverse (TreeNode root){
+    if (root == null){
+       return;
+    }
+    traverse(root.left);
+    traverse(root.right);
+}
+
+
+// 二叉树的遍历框架
+void traverse(TreeNode root) {
+    if (root == null) {
+        return;
+    }
+    // 前序位置
+    traverse(root.left);
+    // 中序位置
+    traverse(root.right);
+    // 后序位置
+}
+
+这里需要强调的是，
+二叉搜索树（BST） 的中序遍历结果是有序的，这是 BST 的一个重要性质。
+
+可以看这个可视化面板，点击其中 res.push(root.val); 这一行代码，就可以看到中序遍历访问节点的顺序：
+
+
+
+层序遍历 
+上面的递归遍历是依赖函数堆栈递归遍历二叉树的，如果把递归函数 traverse 看做一个指针，那么这个指针在二叉树上游走的顺序大概是从最左侧开始，一列一列走到最右侧。
+
+二叉树的层序遍历 
+
+写法一 
+
+void levelOrderTraverse(TreeNode root){
+    if(root == null){
+        return ;
+    }
+    Queue<TreeNode> q = new LinkedList<>();
+    q.offer(root);
+    while(!q.isEmpty()){
+      TreeNode cur = q.poll();
+      System.out.println(cur.val);
+
+      if(cur.left!=null){
+        q.offer(cur.left);
+      }
+      if(cur.right!=null){
+        q.offer(cur.right);
+      
+      }
+    }
+}
+这种写法最大的优势就是简单。每次把队头元素拿出来，然后把它的左右子节点加入队列，就完事了。
+
+但是这种写法的缺点是，无法知道当前节点在第几层。知道节点的层数是个常见的需求，比方说让你收集每一层的节点，或者计算二叉树的最小深度等等。
+
+所以这种写法虽然简单，但用的不多，下面介绍的写法会更常见一些。
+
+写法二 
+
+void levelOrderTraverse(TreeNode root){
+    if (root == null){
+      return;
+    }
+    Queue<TreeNode> q = new LinkedList<>();
+    q.offer(root);
+    int depth = 1;
+
+    while(!q.isEmpty()){
+        int size = q.size();
+        for(int i = 0; i < size;i++){
+            TreeNode cur = q.poll();
+            System.out.println("depth = " + depth + ", val = " + cur.val);
+             // 把 cur 的左右子节点加入队列
+            if (cur.left != null) {
+                q.offer(cur.left);
+            }
+            if (cur.right != null) {
+                q.offer(cur.right);
+            }
+        }
+        depth++;
+    }
+}
+
+int sz = q.size();
+while (sz-- > 0) {
+    ...
+}
+sz-- 是后缀自减操作，它会：
+先比较 sz > 0 的结果。
+然后将 sz 的值减 1。
+当 sz 递减到 0 时，循环停止。
+
+这是最常用的一种写法 
+
+写法三 
+
+
+如果每条树枝的权重和可以是任意值，现在让你层序遍历整棵树，打印每个节点的路径权重和，你会怎么做？
+写法三就是为了解决这个问题，在写法一的基础上添加一个 State 类，让每个节点自己负责维护自己的路径权重和，代码如下
+
+
+class State {
+    TreeNode node;
+    int depth;
+
+    State(TreeNode node, int depth) {
+        this.node = node;
+        this.depth = depth;
+    }
+}
+
+void levelOrderTraverse(TreeNode root) {
+    if (root == null) {
+        return;
+    }
+    Queue<State> q = new LinkedList<>();
+    // 根节点的路径权重和是 1
+    q.offer(new State(root, 1));
+
+    while (!q.isEmpty()) {
+        State cur = q.poll();
+        // 访问 cur 节点，同时知道它的路径权重和
+        System.out.println("depth = " + cur.depth + ", val = " + cur.node.val);
+
+        // 把 cur 的左右子节点加入队列
+        if (cur.node.left != null) {
+            q.offer(new State(cur.node.left, cur.depth + 1));
+        }
+        if (cur.node.right != null) {
+            q.offer(new State(cur.node.right, cur.depth + 1));
+        }
+    }
+}
+
+
+
+
+多叉树的递归 层序遍历 
+这里介绍一下「森林」这个名词，后面讲到 
+Union Find 并查集算法 时，会用到这个概念。
+
+很简单，森林就是多个多叉树的集合。一棵多叉树其实也是一个特殊的森林。
+
+在并查集算法中，我们会同时持有多棵多叉树的根节点，那么这些根节点的集合就是一个森林。
+
+接下来说下多叉树的遍历，和二叉树一样，也就递归遍历（DFS）和层序遍历（BFS）两种。
+
