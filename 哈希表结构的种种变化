@@ -10,3 +10,369 @@
 
 那么一个最直接的思路就是 我想办法把这些键值对都用类似链表节点的结构串联起来 持有一个头尾节点head tail的引用 每次把新的键插入table数组时候 同时把这个键插入链表的底部 
 
+这样 只要我们从头节点head开始遍历 就能按照插入顺序访问所有键了 
+
+所有的数据结构 本质上就是在数组链表这两种基本结构上雕花 但是即使如此 多套几层也晕了  
+
+HashMap<String,String> map = new HashMap<>();
+
+//插入键值对 
+
+string key = " k1";
+String value = "v1";
+map.put(key,value);
+
+这是标准的哈希表 
+
+现在嵌套一个双链表 
+
+//双链表节点 
+
+class Node{
+
+  String key;
+  String value;
+  Node prev;
+  Node next;
+  Node(String key,String value){
+    this.key = key;
+    this.value = value;
+  }
+
+}
+
+HashMap<String,Node> map = new HashMap<>();
+
+//插入键值对
+
+String key = "k1";
+String value = "value1";
+
+map.put(key,new Node(key,value));
+//这里做了简化 实际实现中还要操作新的链表节点加入链表 
+这样就实现了哈希链表结构 
+
+我们还是可以在0（1）的时间复杂度内通过键查到对应的双链表节点 进而找到键值对相应的值
+
+我们还可以在0（1）的时间复杂度内插入新的键值对 因为哈希表 本身的插入操作时间复杂度是 0（1） 且双链表头尾的插入操作复杂度也是0（1）
+
+我们可以在0（1）的时间复杂度内删除指定的键值对 因为哈希表本身的删除时间复杂度是0（1） 删除给定双链表节点 的操作时间复杂度也是0（1）
+
+我们在不改变标准哈希表的基本操作复杂度的前提上 实现了插入顺序访问所有键 
+
+
+
+代码实现 
+
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+
+public class MyLinkedHashMap<K, V> {
+
+    private static class Node<K, V> {
+        K key;
+        V val;
+        Node<K, V> next, prev;
+
+        Node(K key, V val) {
+            this.key = key;
+            this.val = val;
+        }
+    }
+
+    private final Node<K, V> head, tail;
+
+    private final HashMap<K, Node<K, V>> map = new HashMap<>();
+
+    public MyLinkedHashMap() {
+        head = new Node<>(null, null);
+        tail = new Node<>(null, null);
+        head.next = tail;
+        tail.prev = head;
+    }
+
+    public V get(K key) {
+        Node<K, V> node = map.get(key);
+        if (node != null) {
+            return node.val;
+        }
+        return null;
+    }
+
+    public void put(K key, V val) {
+        // 若为新插入的节点，则同时插入链表和 map
+        if (!map.containsKey(key)) {
+            // 插入新的 Node
+            Node<K, V> node = new Node<>(key, val);
+            addLastNode(node);
+            map.put(key, node);
+            return;
+        }
+        // 若存在，则替换之前的 val
+        map.get(key).val = val;
+    }
+
+    public void remove(K key) {
+        // 若 key 本不存在，直接返回
+        if (!map.containsKey(key)) {
+            return;
+        }
+        // 若 key 存在，则需要同时在哈希表和链表中删除
+        Node<K, V> node = map.get(key);
+        map.remove(key);
+        removeNode(node);
+    }
+
+    public boolean containsKey(K key) {
+        return map.containsKey(key);
+    }
+
+    public List<K> keys() {
+        List<K> keyList = new ArrayList<>();
+        for (Node<K, V> p = head.next; p != tail; p = p.next) {
+            keyList.add(p.key);
+        }
+        return keyList;
+    }
+
+    public int size() {
+        return map.size();
+    }
+
+    private void addLastNode(Node<K, V> x) {
+        Node<K, V> temp = tail.prev;
+        // temp <-> tail
+
+        x.next = tail;
+        x.prev = temp;
+        // temp <- x -> tail
+
+        temp.next = x;
+        tail.prev = x;
+        // temp <-> x <-> tail
+    }
+
+    private void removeNode(Node<K, V> x) {
+        Node<K, V> prev = x.prev;
+        Node<K, V> next = x.next;
+        // prev <-> x <-> next
+
+        prev.next = next;
+        next.prev = prev;
+
+        x.next = x.prev = null;
+    }
+
+    public static void main(String[] args) {
+        MyLinkedHashMap<String, Integer> map = new MyLinkedHashMap<>();
+        map.put("a", 1);
+        map.put("b", 2);
+        map.put("c", 3);
+        map.put("d", 4);
+        map.put("e", 5);
+
+        System.out.println(map.keys()); // [a, b, c, d, e]
+        map.remove("c");
+        System.out.println(map.keys()); // [a, b, d, e]
+    }
+}
+
+
+
+下面也可以用数组来加强哈希表
+
+ArrayHashMap
+
+
+interface Map<K, V> {
+    // 获取 key 对应的 value，时间复杂度 O(1)
+    V get(K key);
+
+    // 添加/修改 key-value 对，时间复杂度 O(1)
+    void put(K key, V value);
+
+    // 删除 key-value 对，时间复杂度 O(1)
+    void remove(K key);
+
+    // 是否包含 key，时间复杂度 O(1)
+    boolean containsKey(K key);
+
+    // 返回所有 key，时间复杂度 O(N)
+    List<K> keys();
+
+    // 新增 API：随机返回一个 key，要求时间复杂度 O(1)
+    K randomKey();
+}
+
+
+紧凑的数组可以随机返回一个元素 现在我们要随机返回哈希表的一个键 那么最简单的方法就是
+
+
+// 伪码思路
+class MyArrayHashMap {
+    // arr 数组存储哈希表中所有的 key
+    ArrayList<Integer> arr = new ArrayList<>();     arr数组存储哈希表中所有的key
+
+    Map<Integer, Integer> map = new HashMap<>();
+
+    // 添加/修改 key-value 对，时间复杂度 O(1)
+    public void put(int key, int value) {
+        if (!map.containsKey(key)) {
+            // 新增的 key 加入到 arr 数组中
+            arr.add(key);
+        }
+        map.put(key, value);
+    }
+
+    // 获取 key 对应的 value，时间复杂度 O(1)
+    public int get(int key) {
+        return map.get(key);
+    }
+
+    // 新增 API：随机返回一个 key，要求时间复杂度 O(1)
+    public int randomKey() {
+        Random r = new Random();
+        // 生成 [0, arr.size()) 的随机索引
+        return arr.get(r.nextInt(arr.size()));
+    }
+
+    // 删除 key-value 对，时间复杂度 O(1)
+    public void remove(int key) {
+        ...
+    }
+}
+
+
+这个思路非常简单，就是用一个数组 arr 维护哈希表中所有的键，然后通过随机索引返回一个键。这样就能保证均匀随机，且时间复杂度是 
+O
+(
+1
+)
+O(1)。
+
+但你注意，我没有实现哈希表的 remove 方法。因为这个方法不仅要删除哈希表 map 中的 key，还要删除 arr 数组中的元素 key，而删除数组中的元素时间复杂度是 
+O
+(
+N
+)
+O(N)，因为我们需要搬移数据以保持元素的连续性。
+
+
+那么有没有办法让 arr 数组不用搬移数据，还能保持元素的连续性呢？
+
+O(1) 时间删除数组中的任意元素
+
+其实可以做到：你可以把待删除的元素，先交换到数组尾部，然后再删除，数组尾部删除元素的时间复杂度是 
+O
+(
+1
+)
+O(1)。
+
+当然，这样的代价就是数组中的元素顺序会被打乱，但是对于我们当前的场景来说，数组中的元素顺序并不重要，所以打乱了也无所谓。
+
+
+
+代码实现 就是用arr来维护一个数组 然后数组里面存储key
+
+然后问题就是删除数据的时候可能出现数组空洞和乱序  直接把元素换到队尾 删除队尾 
+
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Random;
+
+public class MyArrayHashMap<K, V> {
+    private static class Node<K, V> {
+        K key;
+        V val;
+
+        Node(K key, V val) {
+            this.key = key;
+            this.val = val;
+        }
+    }
+    // 存储 key 和 key 在 arr 中的索引
+    private final HashMap<K, Integer> map = new HashMap<>();
+
+    // 真正存储 key-value 的数组
+    private final ArrayList<Node<K, V>> arr = new ArrayList<>();
+
+    private final Random r = new Random();
+
+    public V get(K key) {
+        if (!map.containsKey(key)) {
+            return null;
+        }
+        // 获取 key 在 map 中的索引
+        int index = map.get(key);
+        return arr.get(index).val;
+    }
+
+    public void put(K key, V val) {
+        if (containsKey(key)) {
+            // 修改
+            int i = map.get(key);
+            Node<K, V> node = arr.get(i);
+            node.val = val;
+            return;
+        }
+
+        // 新增
+        arr.add(new Node<>(key, val));
+        map.put(key, arr.size() - 1);
+    }
+
+    public void remove(K key) {
+        if (!map.containsKey(key)) {
+            return;
+        }
+        int index = map.get(key);
+        Node<K, V> node = arr.get(index);
+
+        // 1. 最后一个元素 e 和第 index 个元素 node 换位置
+        Node<K, V> e = arr.get(arr.size() - 1);
+        arr.set(index, e);
+        arr.set(arr.size() - 1, node);
+
+        // 2. 修改 map 中 e.key 对应的索引
+        map.put(e.key, index);
+
+        // 3. 在数组中删除最后一个元素
+        arr.remove(arr.size() - 1);
+
+        // 4. 在 map 中删除 node.key
+        map.remove(node.key);
+    }
+
+    // 随机弹出一个键
+    public K randomKey() {
+        int n = arr.size();
+        int randomIndex = r.nextInt(n);
+        return arr.get(randomIndex).key;
+    }
+
+    public boolean containsKey(K key) {
+        return map.containsKey(key);
+    }
+
+    public int size() {
+        return map.size();
+    }
+
+    public static void main(String[] args) {
+        MyArrayHashMap<Integer, Integer> map = new MyArrayHashMap<>();
+        map.put(1, 1);
+        map.put(2, 2);
+        map.put(3, 3);
+        map.put(4, 4);
+        map.put(5, 5);
+
+        System.out.println(map.get(1)); // 1
+        System.out.println(map.randomKey());
+
+        map.remove(4);
+        System.out.println(map.randomKey());
+        System.out.println(map.randomKey());
+    }
+}
