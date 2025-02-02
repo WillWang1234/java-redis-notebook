@@ -1,0 +1,838 @@
+二叉搜索树 bst 左小右大 
+
+对于树中的每个节点，其左子树的每个节点的值都要小于这个节点的值，右子树的每个节点的值都要大于这个节点的值。
+
+比方说下面这棵树就是一棵 BST：
+
+
+    7
+   / \
+  4   9
+ / \   \
+1   5   10
+这个左小右大的特性，可以让我们在 BST 中快速找到某个节点，或者找到某个范围内的所有节点，这是 BST 的优势所在。
+
+这里展示的是查找目标元素的场景，可以看到，利用 BST 左小右大的特性，可以迅速定位到目标节点，理想的时间复杂度是树的高度 
+O
+(
+l
+o
+g
+N
+)
+O(logN)，而普通的二叉树遍历函数则需要 
+O
+(
+N
+)
+O(N) 的时间遍历所有节点。
+
+至于其他增、删、改的操作，你首先查到目标节点，才能进行增删改的操作对吧？增删改的操作无非就是改一改指针，所以增删改的时间复杂度也是 
+O
+(
+l
+o
+g
+N
+)
+O(logN)。
+
+TreeMap/TreeSet 实现原理
+
+
+而 TreeMap 底层把键值对存储在一棵二叉搜索树的节点里面。
+
+至于 TreeSet，它和 TreeMap 的关系正如哈希表 HashMap 和哈希集合 HashSet 的关系一样，说白了就是 TreeMap 的简单封装，所以下面主要讲解 TreeMap 的实现原理。
+
+
+class TreeNode {
+    int val;
+    TreeNode left;
+    TreeNode right;
+    TreeNode(int x) { this.val = x; }
+}
+// TreeMap 主要接口
+class MyTreeMap<K, V> {
+
+    // ****** Map 键值映射的基本方法 ******
+
+    // 增/改，复杂度 O(logN)
+    public void put(K key, V value) {}
+
+    // 查，复杂度 O(logN)
+    public V get(K key) {}
+
+    // 删，复杂度 O(logN)
+    public void remove(K key) {}
+
+    // 是否包含键 key，复杂度 O(logN)
+    public boolean containsKey(K key) {}
+
+    // 返回所有键的集合，结果有序，复杂度 O(N)
+    public List<K> keys() {}
+
+    // ****** TreeMap 提供的额外方法 ******
+
+    // 查找最小键，复杂度 O(logN)
+    public K firstKey() {}
+
+    // 查找最大键，复杂度 O(logN)
+    public K lastKey() {}
+
+    // 查找小于等于 key 的最大键，复杂度 O(logN)
+    public K floorKey(K key) {}
+
+    // 查找大于等于 key 的最小键，复杂度 O(logN)
+    public K ceilingKey(K key) {}
+
+    // 查找排名为 k 的键，复杂度 O(logN)
+    public K selectKey(int k) {}
+
+    // 查找键 key 的排名，复杂度 O(logN)
+    public int rank(K key) {}
+
+    // 区间查找，复杂度 O(logN + M)，M 为区间大小
+    public List<K> rangeKeys(K low, K high) {}
+}
+
+
+基本增删查改
+首先，get 方法其实就类似上面可视化面板中查找目标节点的操作，根据目标 key 和当前节点的 key 比较，决定往左走还是往右走，可以一次性排除掉一半的节点，复杂度是 
+O
+(
+l
+o
+g
+N
+)
+O(logN)。
+
+至于 put, remove, containsKey 方法，其实也是要先利用 get 方法找到目标键所在的节点，然后做一些指针操作，复杂度都是 
+O
+(
+l
+o
+g
+N
+)
+O(logN)。
+
+floorKey, ceilingKey 方法是查找小于等于/大于等于某个键的最大/最小键，这个方法的实现和 get 方法类似，唯一的区别在于，当找不到目标 key 时，get 方法返回空指针，而 ceilingKey, floorKey 方法则返回和目标 key 最接近的键，类似上界和下界。
+
+rangeKeys 方法输入一个 [low, hi] 区间，返回这个区间内的所有键。这个方法的实现也是利用 BST 的性质提高搜索效率：
+
+如果当前节点的 key 小于 low，那么当前节点的整棵左子树都小于 low，根本不用搜索了；如果当前节点的 key 大于 hi，那么当前节点的整棵右子树都大于 hi，也不用搜索了
+
+firstKey 方法是查找最小键，lastKey 方法是查找最大键，借助 BST 左小右大的特性，非常容易实现：
+
+从 BST 的根节点开始，一直往左走，最后遇到的非空节点就是最小的节点；同理，一直往右走，最后遇到的非空节点就是最大的节点。
+
+你看看是不是这样，1 是最小的节点，12 是最大的节点：
+
+    7
+   / \
+  4   9
+ / \   \
+1   5   12
+ \      /
+  2    11
+
+
+  keys 方法返回所有键，且结果有序。可以利用 BST 的中序遍历结果有序的特性。
+
+你可以点击可视化面板中 res.push(root.val); 这一行代码，观察中序遍历的结果：
+
+selectKey, rank 方法
+这两个方法比较有意思。其中 selectKey 方法是查找排名为 k 的键（从小到大，从 1 开始），rank 方法是查找目标 key 的排名。
+
+比如下面这棵 BST，selectKey(3) 返回 5，因为元素 5 的大小排在第三；rank(10) 返回 6，因为元素 10 的排名是第六。
+
+    7
+   / \
+  4   9
+ / \   \
+1   5   10
+
+keys [1, 4, 5, 7, 9, 10]
+rank  1  2  3  4  5  6
+先说 selectKey 方法，一个容易想到的方法是利用 BST 中序遍历结果有序的特性，中序遍历的过程中记录第 k 个遍历到节点，就是排名为 k 的节点。
+
+但是这样的时间复杂度是 
+O
+(
+k
+)
+O(k)，因为你至少要用中序遍历经过 k 个节点。
+
+一个更巧妙的办法是给二叉树节点中新增更多的字段记录额外信息：
+
+class TreeNode<K, V> {
+    K key;
+    V value;
+    // 记录以当前节点为根的子树的节点总数（包含当前节点）
+    int size;
+
+    TreeNode<K, V> left;
+    TreeNode<K, V> right;
+
+    TreeNode(K key, V value) {
+        this.key = key;
+        this.value = value;
+        this.size = 1;
+    }
+}
+    7
+   / \
+  4   9
+ / \   \
+1   5   10
+
+keys [1, 4, 5, 7, 9, 10]
+rank  1  2  3  4  5  6
+size  1  3  1  6  2  1
+这样一来，selectKey 就可以利用这个 size 字段把时间复杂度降到 
+O
+(
+l
+o
+g
+N
+)
+O(logN) 了。
+
+因为 size 维护的就是当前节点为根的整棵树上有多少个节点，加上 BST 左小右大的特性，那么一个节点的排名其实就是左子树的节点总数加上 1。
+
+比方说上面的例子，你调用 selectKey(3) 找排名第三的节点，根节点 7 查看左子节点 4 得知左子树共有 3 个节点，加上自己共有 4 个节点，那么 7 就知道自己排名第四。
+
+由此可知，排名第三的节点在 7 的左子树，就不用再往右子树找了。类似的，如果你调用 selectKey(5) 找排名第五的节点，7 就知道要往右子树找。
+
+再说 rank 方法，也可以利用这个 size 字段。比方说你调用 rank(9)，想知道节点 9 这个元素排名第几，根节点 7 知道左子树有 3 个节点，加上自己共有 4 个节点，即自己排名第 4；然后 7 可以去右子树递归调用 rank(9)，计算节点 9 在右子树中的排名，最后再加上 4，就是整棵树中节点 9 的排名：
+
+rank(node(7), 9) = 3 + 1 + rank(node(9), 9) = 3 + 1 + 1 = 5
+当然，这样也提高了维护的复杂性，因为每次插入、删除节点都要动态地更新这个额外的 size 字段，确保它的正确性。
+
+前文说复杂度是树的高度 
+O
+(
+l
+o
+g
+N
+)
+O(logN)（N 为节点总数），这是有前提的，即二叉搜索树要是「平衡」的，也就是左右子树的高度差不能太大，比如这样：
+
+    7
+   / \
+  4   9
+ / \   \
+1   5   10
+可以直观地感觉到这棵树比较平衡，此时树的高度和节点数的对数关系是 
+O
+(
+l
+o
+g
+N
+)
+O(logN)。
+
+如果搜索树不平衡，比如这种极端情况，所有节点都只有右子树，没有左子树：
+
+1
+ \
+  2
+   \
+    3
+     \
+      4
+       \
+        5
+这样二叉搜索树其实退化成了一条单链表，树的高度等于节点数 
+O
+(
+N
+)
+O(N)，这种情况下，即便这棵树符合 BST 的定义，但是性能就退化成了链表的性能，复杂度全部变成了 
+O
+(
+N
+)
+O(N)。
+
+可以这样说：二叉搜索树的性能取决于树的高度，树的高度取决于树的平衡性。因此，在实际应用中，TreeMap 需要自动维护树的平衡，避免出现性能退化。
+
+如何自动维护平衡性？这可就复杂了。你需要在插入和删除二叉树节点的时候对树进行局部旋转操作，比方上面那棵退化成单链表的 BST，可以这样被旋转成平衡二叉树：
+
+    3
+   / \
+  2   4
+ /     \
+1       5
+大家熟知的红黑树就是一类自平衡的二叉搜索树，它的平衡性能非常好，但是实现起来比较复杂，这就是完美所需付出的代价。
+
+
+
+
+红黑树
+
+二叉搜索树的操作效率取决于树高，树结构越平衡，树高就接近 
+log
+⁡
+N
+logN，增删查改的效率就比较高。而普通二叉搜索树最关键的问题是它不会自动对树进行平衡，特殊的情况下会退化成链表，增删查改的时间复杂度退化为 
+O
+(
+N
+)
+O(N)。
+
+下面这个可视化面板就是一个例子，如果插入若干个有序的键值对，你就能发现每次新增的键都会被插入到最右侧，导致这棵二叉搜索树退化成了链表：
+
+
+红黑树是一种经过优化的能够自平衡的二叉搜索树。任何时候，任何情况下，它的树高都能保持在 
+O
+(
+log
+⁡
+N
+)
+O(logN)（完美平衡），这样就能保证增删查改的时间复杂度都是 
+O
+(
+log
+⁡
+N
+)
+O(logN)。
+
+不过完美平衡的代价是代码实现比较复杂，本文不会深入红黑树的实现细节，而是通过算法可视化让你对红黑树有一个直观的认识。
+
+具体的代码实现，我会更新在数据结构的设计章节的选学部分，因为红黑树确实不是必须掌握的数据结构，就算在工作和刷题中需要使用 TreeMap/TreeSet，直接调用标准库就可以了，没必要有源码级的理解。
+
+可视化面板 支持创建和创建红黑树，支持基本的增删查改 get, put, delete 等功能。你可以打开下面的可视化面板进行如下操作：
+
+1、代码会插入 30 个有序键值对，多次点击 map.put 这部分代码即可看到红黑树插入新节点的过程。
+
+2、注意看红黑树会自动平衡树的高度，同样是插入有序的键值对，红黑树不会像普通二叉搜索树那样退化成链表。
+
+3、你可以多次点击 map.deleteMinKey() 和 map.deleteMaxKey() 这部分代码来删除最小和最大的键值对，多次点击 map.delete(i) 这行代码，可以删除指定的键值对。
+
+4、上述所有操作中，红黑树始终保持完美平衡，即从根节点到叶子节点的每一条树枝上的「黑色节点」个数完全相同。你可以认为红黑树中的红色节点属于辅助节点，且不会出现很多，所以计算树的高度时可以只考虑黑色节点。
+
+
+
+Trie/字典树 前缀树原理及可视化 
+
+多叉树结构 
+
+
+tire树就是多叉树结构的延申  是一种对于字符串做特殊优化的数据结构  trie树在处理字符串相关操作时候有诸多优势 比如节省公告字符串前缀的内存空间 方便处理前缀操作  支持通配符匹配等 
+
+
+trieMap的树节点TrieNode 的代码实现是这样的
+
+class TrieNode<v>{
+    V val = null;
+    TrieNode<v>[] children = new TrieNode[256];
+}
+但是和之前的普通多叉树节点不同，TrieNode 中 children 数组的索引是有意义的，代表键中的一个字符。
+
+比如说 children[97] 如果非空，说明这里存储了一个字符 'a'，因为 'a' 的 ASCII 码为 97。
+
+我们的模板只考虑处理 ASCII 字符，所以 children 数组的大小设置为 256。不过这个可以根据具体问题修改。
+
+比如在实际做题时，题目说了只包含字符 a-z，那么你可以把大小改成 26；或者你不想用字符索引来映射，直接用哈希表 HashMap<Character, TrieNode> 也可以，都是一样的效果。
+
+一个节点有 256 个子节点指针，但大多数时候都是空的，可以省略掉不画，所以一般你看到的 Trie 树长这样
+
+这里要特别注意，TrieNode 节点本身只存储 val 字段，并没有一个字段来存储字符，字符是通过子节点在父节点的 children 数组中的索引确定的。
+
+形象理解就是，Trie 树用「树枝」存储字符串（键），用「节点」存储字符串（键）对应的数据（值）。所以我在图中把字符标在树枝，键对应的值 val 标在节点上：
+
+
+// 底层用 Trie 树实现的键值映射
+// 键为 String 类型，值为类型 V
+class TrieMap<V> {
+
+    // 在 Map 中添加/修改键值对
+    public void put(String key, V val);
+
+    // 删除键 key 以及对应的值
+    public void remove(String key);
+
+    // 搜索 key 对应的值，不存在则返回 null
+    // get("the") -> 4
+    // get("tha") -> null
+    public V get(String key);
+
+    // 判断 key 是否存在在 Map 中
+    // containsKey("tea") -> false
+    // containsKey("team") -> true
+    public boolean containsKey(String key);
+
+    // 在 Map 的所有键中搜索 query 的最短前缀
+    // shortestPrefixOf("themxyz") -> "the"
+    public String shortestPrefixOf(String query);
+
+    // 在 Map 的所有键中搜索 query 的最长前缀
+    // longestPrefixOf("themxyz") -> "them"
+    public String longestPrefixOf(String query);
+
+    // 搜索所有前缀为 prefix 的键
+    // keysWithPrefix("th") -> ["that", "the", "them"]
+    public List<String> keysWithPrefix(String prefix);
+
+    // 判断是和否存在前缀为 prefix 的键
+    // hasKeyWithPrefix("tha") -> true
+    // hasKeyWithPrefix("apple") -> false
+    public boolean hasKeyWithPrefix(String prefix);
+
+    // 通配符 . 匹配任意字符，搜索所有匹配的键
+    // keysWithPattern("t.a.") -> ["team", "that"]
+    public List<String> keysWithPattern(String pattern);
+
+    // 通配符 . 匹配任意字符，判断是否存在匹配的键
+    // hasKeyWithPattern(".ip") -> true
+    // hasKeyWithPattern(".i") -> false
+    public boolean hasKeyWithPattern(String pattern);
+
+    // 返回 Map 中键值对的数量
+    public int size();
+}
+
+
+
+
+
+二叉堆的核心原理和可视化 
+二叉堆是一种能够动态排序的数据结构，是 
+二叉树结构 的延伸。
+二叉堆的主要操作就两个，sink（下沉）和 swim（上浮），用以维护二叉堆的性质。
+
+二叉堆的主要操作就两个，sink（下沉）和 swim（上浮），用以维护二叉堆的性质。
+
+二叉堆的主要应用有两个，首先是一种很有用的数据结构优先级队列（Priority Queue），第二是一种排序方法堆排序（Heap Sort）
+
+二叉堆的性质
+二叉堆就是一种能够动态排序的数据结构。所谓动态排序，就是说我们可以不断往数据结构里面添加或删除元素，数据结构会自动调整元素的位置，使得我们可以有序地从数据结构中读取元素，这是一般的排序算法做不到的。
+
+能动态排序的常用数据结构其实只有两个，一个是优先级队列（底层用二叉堆实现），另一个是二叉搜索树。二叉搜索树的用途更广泛，优先级队列能做的事情，二叉搜索树其实都能做。但优先级队列的 API 和代码实现相较于二叉搜索树更简单，
+所以一般能用优先级队列解决的问题，我们没必要用二叉搜索树。
+
+
+二叉堆的性质
+
+你可以认为二叉堆是一种特殊的二叉树，这棵二叉树上的任意节点的值，都必须大于等于（或小于等于）其左右子树所有节点的值。如果是大于等于，我们称之为「大顶堆」，如果是小于等于，我们称之为「小顶堆」。
+
+对于小顶堆，每个节点下方的所有节点的值都比它大，那么不难想象根节点就是整棵树上的最小值。同理，大顶堆的根节点就是整棵树上的最大值。所以二叉堆可以辅助我们快速找到最大值或最小值。
+
+二叉堆还有个性质：一个二叉堆的左右子堆（子树）也是一个二叉堆。这个性质主要在 
+堆排序算法的优化 中有用到。
+
+
+
+最常见的应用：优先级队列
+
+class MyPriorityQueue{
+  void push(int x);
+  int peek();
+  int pop();
+  int size();
+}
+当然，自动排序是有代价的，注意优先级队列 API 的时间复杂度，增删元素的复杂度是 
+O
+(
+l
+o
+g
+N
+)
+O(logN)，其中 N 是当前二叉堆中的元素个数，回头在算法题里面用到这种结构的话，你得会计算总的时间复杂度。
+
+有的读者可能会问，这明明就是二叉堆，为啥非要叫他优先级队列呢？
+
+主要是因为这个数据结构的 API 和我们之前讲的 
+标准队列 API 很像，标准队列是先进先出的顺序，而二叉堆可以理解为一种会自动排序的队列，所以叫做优先级队列感觉也挺贴切的。
+
+当然，你也一定要明白，虽然它的 API 像队列，但它的底层原理和二叉树有关，和队列没啥关系。
+
+另一种应用 堆排序 
+这种排序算法其实不用专门去学的。它的原理特别简单，就相当于把一个乱序的数组都 push 到一个二叉堆（优先级队列）里面，然后再一个个 pop 出来，就得到了一个有序的数组：
+// 堆排序伪码，对 arr 原地排序
+// 时间复杂度 O(NlogN)，空间复杂度 O(N)
+int[] heapSort(int[] arr) {
+    int[] res = new int[arr.length];
+    MyPriorityQueue pq = new MyPriorityQueue();
+    for (int x : arr)
+        pq.push(x);
+    // 元素出堆的顺序是有序的
+    for (int i = 0; i < arr.length; i++)
+        res[i] = pq.pop();
+    return res;
+}
+
+当然，正常的堆排序算法的代码并不依赖优先级队列，且空间复杂度是 
+O
+(
+1
+)
+O(1)。那是因为它把 push 和 pop 的代码逻辑展开了，再加上直接在数组上原地建堆，这样就不需要额外的空间了。
+
+但堆排序的本质还是依靠二叉堆的性质来排序元素，等我手把手带你实现优先级队列之后，你就可以自己实现堆排序了。
+
+
+二叉堆 优先级队列的代码实现 
+
+简化版优先级队列 
+我们实现的这个简化版优先级队列有如下限制：
+
+1、不支持泛型，仅支持存储整数类型的元素。
+
+2、不考虑扩容的问题，队列的容量在创建时固定，假设插入的元素数量不会超过这个容量。
+
+3、底层仅实现一个小顶堆（即根节点是整个堆中的最小值），不支持自定义比较器。
+
+class SimpleMinPQ {
+    // 创建一个容量为 capacity 的优先级队列
+    public SimpleMinPQ(int capacity);
+
+    // 返回队列中的元素个数
+    public int size();
+
+    // 向队列中插入一个元素
+    public void push(int x);
+
+    // 返回队列中的最小元素（堆顶元素）
+    public int peek();
+
+    // 删除并返回队列中的最小元素（堆顶元素）
+    public int pop();
+}
+
+// 使用方法
+SimpleMinPQ pq = new SimpleMinPQ(10);
+pq.push(3);
+pq.push(4);
+pq.push(1);
+pq.push(2);
+System.out.println(pq.pop()); // 1
+System.out.println(pq.pop()); // 2
+System.out.println(pq.pop()); // 3
+System.out.println(pq.pop()); // 4
+
+难点分析
+在前文 
+二叉堆的原理 中你应该也感觉到了，二叉堆的难点在于 你在插入或删除元素时，还要保持堆的性质。
+
+增：push/swim 方法插入元素
+核心步骤
+
+以小顶堆为例，向小顶堆中插入新元素遵循两个步骤：
+
+1、先把新元素追加到二叉树底层的最右侧，保持完全二叉树的结构。此时该元素的父节点可能比它大，不满足小顶堆的性质。
+
+2、为了恢复小顶堆的性质，需要将这个新元素不断上浮（swim），直到它的父节点比它小为止，或者到达根节点。此时整个二叉树就满足小顶堆的性质了。
+
+
+class HeadNode{
+  constructor(val){
+    this.val = val ;
+    this.left = null;
+    this.right = null;
+    this.parent = null;
+  }
+}
+删：pop/sink 方法删除元素
+核心步骤
+
+以小顶堆为例，删除小顶堆的堆顶元素遵循两个步骤：
+
+1、先把堆顶元素删除，把二叉树底层的最右侧元素摘除并移动到堆顶，保持完全二叉树的结构。此时堆顶元素可能比它的子节点大，不满足小顶堆的性质。
+
+2、为了恢复小顶堆的性质，需要将这个新的堆顶元素不断下沉（sink），直到它比它的子节点小为止，或者到达叶子节点。此时整个二叉树就满足小顶堆的性质了。
+
+
+在数组上模拟二叉树
+在之前的所有内容中，我都把二叉堆作为一种二叉树来讲解，而且可视化面板中也是通过操作 HeapNode 节点的方式来展示的。但实际上，我们在代码实现的时候，
+不会用类似 HeapNode 的节点类来实现，而是用数组来模拟二叉树结构。
+用数组模拟二叉树的原因
+
+第一个原因是前面介绍 
+数组 和 
+链表 时说到的，链表节点需要一个额外的指针存储相邻节点的地址，所以相对数组，链表的内存消耗会大一些。我们这里的 HeapNode 类也是链式存储的例子，和链表节点类似，需要额外的指针存储父节点和子节点的地址。
+
+第二个原因，也是最主要的原因，是时间复杂度的问题。仔细想一下前面我给你展示的 push 和 pop 方法的操作过程，它们的第一步是什么？是不是要找到二叉树最底层的最右侧元素？
+
+因为上面举的场景是我们自己构造的，可以直接用操作 left, right 指针的方式把目标节点拿到。但你想想，正常情况下你如何拿到二叉树的底层最右侧节点？你需要层序遍历或递归遍历二叉树，时间复杂度是 
+O
+(
+N
+)
+O(N)，进而导致 push 和 pop 方法的时间复杂度退化到 
+O
+(
+N
+)
+O(N)，这显然是不可接受的。
+
+如果用数组来模拟二叉树，就可以完美解决这个问题，在 
+O
+(
+1
+)
+O(1) 时间内找到二叉树的底层最右侧节点。
+想要用数组模拟二叉树，前提是这个二叉树必须是完全二叉树。
+在这个数组中，索引 0 空着不用，就可以根据任意节点的索引计算出父节点或左右子节点的索引：
+// 父节点的索引
+int parent(int node) {
+    return node / 2;
+}
+// 左子节点的索引
+int left(int node) {
+    return node * 2;
+}
+// 右子节点的索引
+int right(int node) {
+    return node * 2 + 1;
+}
+
+其实从 0 开始也是可以的，稍微改一改计算公式就行了：
+
+// 父节点的索引
+int parent(int node) {
+    return (node - 1) / 2;
+}
+
+// 左子节点的索引
+int left(int node) {
+    return node * 2 + 1;
+}
+
+// 右子节点的索引
+int right(int node) {
+    return node * 2 + 2;
+}
+
+代码实现 
+public class SimpleMinPQ{
+  private final int[] heap;
+  private int size;
+  public SimpleMinPQ(int capacity){
+      head = new int [capacity];
+      size = 0 ;
+  }
+  public int size(){
+  return size;
+  }
+  private int parent（int node）{
+    return (node-1)/2;
+  }
+  private int left(int node){
+      return node*2 +1;
+  }
+
+  private int right(int node){
+      return node*2+2;
+  }
+
+  private void swap(int i,int j){
+      int temp = heap[i];
+      heap[i] = heap[j];
+      heap[j] = temp;
+  }
+  public int peek(){
+    return heap[0];
+  }
+  public void push(int x){
+    heap[size] = x;
+    swim(size);
+    size++;
+  }
+  public int pop(){
+      int res = heap[0];
+      heao[0] = heap[size-1];
+      size--;
+      sink(0);
+      return res;
+  }
+
+  private void swim(int node){
+      while(node >0 &&heap[parent(node)]>heap[node]){
+          swap(parent(node),node);
+          node = parent(node);;
+      }
+  }
+  private void sink(int node){
+      while(left(node)<size||rigth(node)<size){
+        int min = node;
+        if(left(node)<size && heap[left(node)]<heap[min]){
+            min = left(node);
+        }
+        if(right(node)<size && heap[right(node)]<heap[min]){
+            min = right(node);
+            
+        }
+        if (min == node){
+          break;
+        }
+        swap(node,min);
+        node = min;
+      }
+  }
+  public static void main(String[] args) {
+        SimpleMinPQ pq = new SimpleMinPQ(5);
+        pq.push(3);
+        pq.push(2);
+        pq.push(1);
+        pq.push(5);
+        pq.push(4);
+
+        System.out.println(pq.pop()); // 1
+        System.out.println(pq.pop()); // 2
+        System.out.println(pq.pop()); // 3
+        System.out.println(pq.pop()); // 4
+        System.out.println(pq.pop()); // 5
+    }
+}
+
+
+
+import java.util.Comparator;
+import java.util.NoSuchElementException;
+
+public class MyPriorityQueue<T> {
+    private T[] heap;
+    private int size;
+    private final Comparator<? super T> comparator;
+
+    @SuppressWarnings("unchecked")
+    public MyPriorityQueue(int capacity, Comparator<? super T> comparator) {
+        heap = (T[]) new Object[capacity];
+        size = 0;
+        this.comparator = comparator;
+    }
+
+    public int size() {
+        return size;
+    }
+
+    public boolean isEmpty() {
+        return size == 0;
+    }
+
+    // 父节点的索引
+    private int parent(int node) {
+        return (node - 1) / 2;
+    }
+
+    // 左子节点的索引
+    private int left(int node) {
+        return node * 2 + 1;
+    }
+
+    // 右子节点的索引
+    private int right(int node) {
+        return node * 2 + 2;
+    }
+
+    // 交换数组的两个元素
+    private void swap(int i, int j) {
+        T temp = heap[i];
+        heap[i] = heap[j];
+        heap[j] = temp;
+    }
+
+    // 查，返回堆顶元素，时间复杂度 O(1)
+    public T peek() {
+        if (isEmpty()) {
+            throw new NoSuchElementException("Priority queue underflow");
+        }
+        return heap[0];
+    }
+
+    // 增，向堆中插入一个元素，时间复杂度 O(logN)
+    public void push(T x) {
+        // 扩容
+        if (size == heap.length) {
+            resize(2 * heap.length);
+        }
+        // 把新元素追加到最后
+        heap[size] = x;
+        // 然后上浮到正确位置
+        swim(size);
+        size++;
+    }
+
+    // 删，删除堆顶元素，时间复杂度 O(logN)
+    public T pop() {
+        if (isEmpty()) {
+            throw new NoSuchElementException("Priority queue underflow");
+        }
+        T res = heap[0];
+        // 把堆底元素放到堆顶
+        swap(0, size - 1);
+        // 避免对象游离
+        heap[size - 1] = null;
+        size--;
+        // 然后下沉到正确位置
+        sink(0);
+        // 缩容
+        if ((size > 0) && (size == heap.length / 4)) {
+            resize(heap.length / 2);
+        }
+        return res;
+    }
+
+    // 上浮操作，时间复杂度是树高 O(logN)
+    private void swim(int node) {
+        while (node > 0 && comparator.compare(heap[parent(node)], heap[node]) > 0) {
+            swap(parent(node), node);
+            node = parent(node);
+        }
+    }
+
+    // 下沉操作，时间复杂度是树高 O(logN)
+    private void sink(int node) {
+        while (left(node) < size || right(node) < size) {
+            // 比较自己和左右子节点，看看谁最小
+            int min = node;
+            if (left(node) < size && comparator.compare(heap[left(node)], heap[min]) < 0) {
+                min = left(node);
+            }
+            if (right(node) < size && comparator.compare(heap[right(node)], heap[min]) < 0) {
+                min = right(node);
+            }
+            if (min == node) {
+                break;
+            }
+            // 如果左右子节点中有比自己小的，就交换
+            swap(node, min);
+            node = min;
+        }
+    }
+
+    // 调整堆的大小
+    @SuppressWarnings("unchecked")
+    private void resize(int capacity) {
+        assert capacity > size;
+        T[] temp = (T[]) new Object[capacity];
+        for (int i = 0; i < size; i++) {
+            temp[i] = heap[i];
+        }
+        heap = temp;
+    }
+
+    public static void main(String[] args) {
+        MyPriorityQueue<Integer> pq = new MyPriorityQueue<>(3, Comparator.naturalOrder());
+        pq.push(3);
+        pq.push(1);
+        pq.push(4);
+        pq.push(1);
+        pq.push(5);
+        pq.push(9);
+        // 1 1 3 4 5 9
+        while (!pq.isEmpty()) {
+            System.out.println(pq.pop());
+        }
+    }
+}
